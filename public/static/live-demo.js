@@ -236,6 +236,7 @@ const conversation = [
 let currentTime = 0;
 let currentIndex = 0;
 let callActive = true;
+let callPaused = false; // Track if call is paused
 let conversationHistory = []; // Track full conversation for AI context
 
 // DOM elements
@@ -325,12 +326,12 @@ function updateClarity(clarity) {
 }
 
 function updateMetrics(empathy) {
-    // Update quality score based on empathy
-    const quality = Math.min(99, Math.round(empathy * 10 + 5));
+    // Update quality score based on empathy (realistic range 60-92%)
+    const quality = Math.min(92, Math.max(60, Math.round(empathy * 8 + 20)));
     qualityScore.textContent = `${quality}%`;
     
-    // Update predicted CSAT
-    const csat = Math.min(10, (empathy * 0.9 + 1).toFixed(1));
+    // Update predicted CSAT (realistic range 3.5-9.2)
+    const csat = Math.min(9.2, Math.max(3.5, (empathy * 0.85 + 1.5))).toFixed(1);
     predictedCsat.textContent = csat;
 }
 
@@ -583,14 +584,16 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "priority": 1-3\n`;
         context += `  },\n`;
         context += `  "metrics": {\n`;
-        context += `    "empathy": 0-10 (current empathy score),\n`;
+        context += `    "empathy": 3.0-9.5 (realistic decimal, avoid 10),\n`;
         context += `    "sentiment": 0.0-1.0 (0=very upset, 0.5=neutral, 1.0=happy),\n`;
         context += `    "stress": "High|Medium|Low",\n`;
         context += `    "clarity": "Poor|Fair|Good",\n`;
-        context += `    "issue": "Brief issue description (max 30 chars)",\n`;
-        context += `    "tags": ["tag1", "tag2"] (max 2 relevant tags)\n`;
+        context += `    "issue": "Brief issue (max 25 chars)",\n`;
+        context += `    "tags": ["Short Tag", "2-3 Words Max"] (max 4 tags about CUSTOMER only: account type, issue type, behavior - NOT agent performance)\n`;
         context += `  }\n`;
         context += `}\n\n`;
+        context += `Examples of GOOD tags: "3rd Call", "Work From Home", "Premium Account", "Frustrated", "Technical Issue"\n`;
+        context += `Examples of BAD tags: "High CSAT", "Agent Performance", "Good Service" (these are about agent, not customer)\n`;
         context += `Return ONLY valid JSON, nothing else.`;
         
         // Call Ollama directly from browser
@@ -697,7 +700,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     customerInfo.issue = metrics.issue.substring(0, 30);
                 }
                 if (metrics.tags && Array.isArray(metrics.tags)) {
-                    customerInfo.tags = metrics.tags.slice(0, 2);
+                    customerInfo.tags = metrics.tags.slice(0, 4);
                 }
                 if (Object.keys(customerInfo).length > 0) {
                     updateCustomerInfo(customerInfo);
@@ -761,6 +764,12 @@ function usePhraseClicked() {
 
 // Main simulation loop
 function simulateCall() {
+    // Skip if paused
+    if (callPaused) {
+        setTimeout(simulateCall, 100); // Check again soon
+        return;
+    }
+    
     callTime.textContent = formatTime(currentTime);
     
     // Check if we need to add next conversation item
@@ -1033,6 +1042,27 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+// Hold/Resume functionality
+function toggleHoldResume() {
+    const btn = document.getElementById('hold-resume-btn');
+    const icon = document.getElementById('hold-resume-icon');
+    const text = document.getElementById('hold-resume-text');
+    
+    callPaused = !callPaused;
+    
+    if (callPaused) {
+        // Switch to Resume state
+        icon.className = 'fas fa-play text-xs';
+        text.textContent = 'Resume';
+        btn.className = 'px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 font-semibold rounded text-sm transition flex items-center gap-2 border border-green-500/30';
+    } else {
+        // Switch back to Hold state
+        icon.className = 'fas fa-pause text-xs';
+        text.textContent = 'Hold';
+        btn.className = 'px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-semibold rounded text-sm transition flex items-center gap-2 border border-yellow-500/30';
+    }
+}
+
 // Make functions available globally
 window.usePhraseClicked = usePhraseClicked;
 window.toggleTheme = toggleTheme;
@@ -1040,3 +1070,4 @@ window.openSettings = openSettings;
 window.closeSettings = closeSettings;
 window.saveSettings = saveSettings;
 window.testOllamaConnection = testOllamaConnection;
+window.toggleHoldResume = toggleHoldResume;
