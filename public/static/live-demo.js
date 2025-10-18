@@ -245,7 +245,6 @@ const empathyScore = document.getElementById('empathy-score');
 const callTime = document.getElementById('call-time');
 const sentimentLabel = document.getElementById('sentiment-label');
 const stressLabel = document.getElementById('stress-label');
-const sentimentIndicator = document.getElementById('sentiment-indicator');
 const qualityScore = document.getElementById('quality-score');
 const predictedCsat = document.getElementById('predicted-csat');
 
@@ -265,9 +264,7 @@ function formatTime(seconds) {
 }
 
 function updateSentimentUI(sentiment) {
-    const position = sentiment * 100;
-    sentimentIndicator.style.left = `${position}%`;
-    
+    // Update sentiment label only (bar removed)
     if (sentiment < 0.3) {
         sentimentLabel.textContent = 'Upset';
         sentimentLabel.className = 'font-semibold text-red-400';
