@@ -348,9 +348,12 @@ async function getAgentResponse(customerMessage) {
         
         context += `\nRespond as an Amazon customer service agent. Be helpful, empathetic, and professional. Keep responses to 1-2 sentences.\n`;
         
-        // IMPORTANT: Ask for customer name on first interaction
-        if (conversationHistory.length <= 2) {
-            context += `CRITICAL: This is the customer's first message. Ask for their name to personalize service. Example: "I'd be happy to help! May I have your name please?"\n`;
+        // IMPORTANT: Ask for customer name on first interaction ONLY if we don't have it
+        const hasCustomerName = customerName.textContent !== 'Identifying';
+        if (conversationHistory.length <= 2 && !hasCustomerName) {
+            context += `CRITICAL: This is the customer's first message and you don't know their name yet. Ask for their name to personalize service. Example: "I'd be happy to help! May I have your name please?"\n`;
+        } else if (hasCustomerName) {
+            context += `NOTE: Customer's name is ${customerName.textContent}. Use their name when appropriate.\n`;
         }
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -480,6 +483,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "predicted_csat": 1.0-10.0,\n`;
         context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved",\n`;
         context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue description (max 30 chars) or null"'},\n`;
+        context += `    "customer_name": "Extract if customer says their name, otherwise null",\n`;
         context += `    "tags": ["Max 3 or empty array"]\n`;
         context += `  }\n`;
         context += `}\n\n`;
@@ -607,12 +611,27 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   🎯 RULES:\n`;
         context += `   - Look for CONCRETE PROBLEMS mentioned by customer\n`;
         context += `   - Extract the SITUATION, not the feeling\n`;
-        context += `   - If customer says "My package hasn't arrived" → issue: "Package not arrived"\n`;
-        context += `   - If customer says "I got charged twice" → issue: "Double charged"\n`;
+        context += `   📝 EXPLICIT MAPPING EXAMPLES:\n`;
+        context += `   - Customer: "My package hasn't arrived" → issue: "Package not arrived"\n`;
+        context += `   - Customer: "I got charged twice" → issue: "Double charged"\n`;
+        context += `   - Customer: "My bag is missing" → issue: "Missing bag"\n`;
+        context += `   - Customer: "I received the wrong item" → issue: "Wrong item received"\n`;
+        context += `   - Customer: "The product is damaged" → issue: "Damaged product"\n`;
+        context += `   - Customer: "I can't access my account" → issue: "Account access issue"\n`;
+        context += `   - Customer: "My order was cancelled" → issue: "Order cancelled"\n`;
+        context += `   - Customer: "I need a refund" → issue: "Refund request"\n`;
         context += `   - If no specific problem mentioned yet → null\n`;
         context += `   - Once set, use "KEEP_UNCHANGED" to preserve it\n\n`;
         
-        context += `8. TAGS: ONLY add if customer EXPLICITLY says:\n`;
+        context += `8. CUSTOMER NAME: Extract if customer introduces themselves:\n`;
+        context += `   - "My name is John" → "John"\n`;
+        context += `   - "I'm Sarah" → "Sarah"\n`;
+        context += `   - "This is Michael calling" → "Michael"\n`;
+        context += `   - "Hi, I'm Alex" → "Alex"\n`;
+        context += `   - If customer doesn't mention their name → null\n`;
+        context += `   - Look for phrases like: "my name is", "I'm", "this is", "I am"\n\n`;
+        
+        context += `9. TAGS: ONLY add if customer EXPLICITLY says:\n`;
         context += `   - "I'm a premium member" → "Premium"\n`;
         context += `   - "I've called 3 times" → "Repeat Caller"\n`;
         context += `   - Otherwise → empty array []\n\n`;
@@ -784,6 +803,19 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 }
                 
                 const customerInfo = {};
+                
+                // NAME: Extract customer name if provided
+                if (metrics.customer_name && metrics.customer_name !== null && typeof metrics.customer_name === 'string') {
+                    const name = metrics.customer_name.trim();
+                    if (name.length > 0 && name.length < 30) {
+                        customerInfo.name = name;
+                        // Generate initials from name
+                        const nameParts = name.split(' ');
+                        customerInfo.initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').substring(0, 2);
+                        console.log('✅ Customer name detected:', name);
+                    }
+                }
+                
                 // ISSUE: Only set once when customer describes actual problem (not emotion)
                 if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null) {
                     // Validate that issue is not an emotion word
