@@ -194,25 +194,40 @@
                 padding-bottom: 20px;
             }
 
-            /* Hide sidebars on mobile initially */
+            /* Show sidebars on mobile - balanced sections */
             .mobile-sidebar {
-                display: none;
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
 
-            /* Transcript - Fixed reasonable height */
-            .mobile-transcript {
-                height: 50vh !important;
-                min-height: 300px !important;
-                max-height: 500px !important;
+            .mobile-sidebar > * {
                 flex-shrink: 0;
             }
 
-            /* Coaching section below transcript - visible and scrollable */
+            /* Transcript - Balanced height */
+            .mobile-transcript {
+                height: 40vh !important;
+                min-height: 250px !important;
+                max-height: 400px !important;
+                flex-shrink: 0;
+            }
+
+            /* Coaching section - Balanced height */
             .mobile-coaching {
-                display: block !important;
+                display: flex !important;
+                flex-direction: column !important;
                 height: auto !important;
                 min-height: 200px !important;
-                overflow-y: auto !important;
+                max-height: none !important;
+                width: 100% !important;
+                overflow: visible !important;
+                flex-shrink: 0;
+            }
+
+            .mobile-coaching > * {
                 flex-shrink: 0;
             }
 
@@ -231,6 +246,11 @@
                 height: 32px !important;
             }
 
+            /* Compact spectrum bars on mobile */
+            .spectrum-bar {
+                width: 3px !important;
+            }
+
             /* Bottom controls sticky */
             .mobile-controls {
                 position: fixed;
@@ -247,6 +267,15 @@
             .mobile-controls button {
                 font-size: 11px !important;
                 padding: 8px 12px !important;
+            }
+
+            /* Compact cards on mobile */
+            .glass-panel h3 {
+                font-size: 10px !important;
+            }
+
+            .glass-panel .text-xs {
+                font-size: 10px !important;
             }
         }
     </style>
