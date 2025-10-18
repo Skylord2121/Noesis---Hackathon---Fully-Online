@@ -8,7 +8,8 @@ const conversation = [
         text: 'Thank you for calling BrightWave Internet Support. This is Maya. How can I help you today?',
         sentiment: 0.5,
         empathy: 3.2,
-        stress: 'Low',
+        stress: null,
+        clarity: null,
         coaching: null
     },
     {
@@ -20,6 +21,7 @@ const conversation = [
         sentiment: 0.05,
         empathy: 3.2,
         stress: 'High',
+        clarity: 'Poor',
         customerInfo: {
             name: 'Laura Chen',
             initials: 'LC',
@@ -42,6 +44,7 @@ const conversation = [
         sentiment: 0.15,
         empathy: 5.8,
         stress: 'High',
+        clarity: 'Fair',
         coaching: null
     },
     {
@@ -53,6 +56,7 @@ const conversation = [
         sentiment: 0.12,
         empathy: 5.8,
         stress: 'High',
+        clarity: 'Fair',
         customerInfo: {
             tags: ['Work From Home']
         },
@@ -72,6 +76,8 @@ const conversation = [
         sentiment: 0.25,
         empathy: 6.9,
         stress: 'Medium',
+        clarity: 'Good',
+        clarity: 'Good',
         customerInfo: {
             tier: 'Premium • 2.3yr',
             tags: ['Premium']
@@ -92,6 +98,7 @@ const conversation = [
         sentiment: 0.35,
         empathy: 7.2,
         stress: 'Medium',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -103,6 +110,7 @@ const conversation = [
         sentiment: 0.40,
         empathy: 7.2,
         stress: 'Medium',
+        clarity: 'Good',
         coaching: {
             type: 'transparency',
             title: 'Build Trust',
@@ -119,6 +127,7 @@ const conversation = [
         sentiment: 0.55,
         empathy: 8.4,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -129,6 +138,7 @@ const conversation = [
         sentiment: 0.62,
         empathy: 8.4,
         stress: 'Low',
+        clarity: 'Good',
         coaching: {
             type: 'resolution',
             title: 'Clear Next Steps',
@@ -145,6 +155,7 @@ const conversation = [
         sentiment: 0.75,
         empathy: 9.1,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -155,6 +166,7 @@ const conversation = [
         sentiment: 0.85,
         empathy: 9.1,
         stress: 'Low',
+        clarity: 'Good',
         coaching: {
             type: 'knowledge',
             title: 'Document Success',
@@ -171,6 +183,7 @@ const conversation = [
         sentiment: 0.90,
         empathy: 9.3,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -181,6 +194,7 @@ const conversation = [
         sentiment: 0.92,
         empathy: 9.3,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -191,6 +205,7 @@ const conversation = [
         sentiment: 0.95,
         empathy: 9.5,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -201,6 +216,7 @@ const conversation = [
         sentiment: 0.95,
         empathy: 9.5,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     },
     {
@@ -211,6 +227,7 @@ const conversation = [
         sentiment: 0.98,
         empathy: 9.6,
         stress: 'Low',
+        clarity: 'Good',
         coaching: null
     }
 ];
@@ -238,6 +255,7 @@ const customerInitials = document.getElementById('customer-initials');
 const customerTier = document.getElementById('customer-tier');
 const customerIssue = document.getElementById('customer-issue');
 const customerTags = document.getElementById('customer-tags');
+const clarityLabel = document.getElementById('clarity-label');
 
 // Helper functions
 function formatTime(seconds) {
@@ -285,6 +303,7 @@ function updateEmpathyScore(score) {
 }
 
 function updateStressLevel(stress) {
+    if (!stress) return; // Don't update if null
     stressLabel.textContent = stress;
     if (stress === 'High') {
         stressLabel.className = 'font-semibold text-red-400';
@@ -292,6 +311,18 @@ function updateStressLevel(stress) {
         stressLabel.className = 'font-semibold text-orange-400';
     } else {
         stressLabel.className = 'font-semibold text-green-400';
+    }
+}
+
+function updateClarity(clarity) {
+    if (!clarity) return; // Don't update if null
+    clarityLabel.textContent = clarity;
+    if (clarity === 'Poor') {
+        clarityLabel.className = 'font-semibold text-red-400';
+    } else if (clarity === 'Fair') {
+        clarityLabel.className = 'font-semibold text-orange-400';
+    } else {
+        clarityLabel.className = 'font-semibold text-green-400';
     }
 }
 
@@ -560,6 +591,7 @@ function simulateCall() {
             updateSentimentUI(item.sentiment);
             updateEmpathyScore(item.empathy);
             updateStressLevel(item.stress);
+            updateClarity(item.clarity);
             updateMetrics(item.empathy);
             
             // Add coaching if present
