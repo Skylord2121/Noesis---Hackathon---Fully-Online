@@ -181,8 +181,13 @@ Microphone → Web Audio API → Analyser Node → Frequency Data → Visual Bar
 ✅ **Connection testing** - Verify Ollama before starting  
 ✅ **Clean UI** - Removed all demo/simulation code  
 ✅ **Empathy score** - Connected to AI (NOT hardcoded)  
-✅ **Quality score** - Calculated from empathy  
-✅ **Predicted CSAT** - Derived from metrics  
+✅ **Quality score** - Direct from AI (0-100 scale)  
+✅ **Predicted CSAT** - AI-analyzed emotion intensity (0-10 scale)  
+✅ **Sentiment mapping** - Accurate 0-10 display matching emotion words  
+✅ **Spectrum bars zero state** - Bars reduce to 0% when not speaking  
+✅ **Mic pause during AI reply** - Prevents transcript disruption  
+✅ **Extended speech window** - Continuous listening for natural pauses  
+✅ **Pause/Resume controls** - Mid-session pause functionality  
 
 ## 🔮 Features Not Yet Implemented
 

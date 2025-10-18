@@ -314,6 +314,16 @@ async function getAgentResponse(customerMessage) {
         const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
         const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
         
+        // PAUSE MICROPHONE while AI is responding to prevent transcript disruption
+        if (recognition && isListening && !isPaused) {
+            try {
+                recognition.stop();
+                console.log('Microphone paused for AI response');
+            } catch (e) {
+                console.log('Recognition already stopped');
+            }
+        }
+        
         showAgentThinking();
         
         // Build context with company information
@@ -364,9 +374,33 @@ async function getAgentResponse(customerMessage) {
             text: agentText
         });
         
+        // RESUME MICROPHONE after AI finishes responding
+        if (recognition && isListening && !isPaused) {
+            setTimeout(() => {
+                try {
+                    recognition.start();
+                    console.log('Microphone resumed after AI response');
+                } catch (e) {
+                    console.log('Recognition already running');
+                }
+            }, 500); // Small delay to ensure clean transition
+        }
+        
     } catch (error) {
         console.error('Agent response failed:', error);
         removeAgentThinking();
+        
+        // Make sure to resume microphone even if agent response fails
+        if (recognition && isListening && !isPaused) {
+            setTimeout(() => {
+                try {
+                    recognition.start();
+                    console.log('Microphone resumed after error');
+                } catch (e) {
+                    console.log('Recognition already running');
+                }
+            }, 500);
+        }
     }
 }
 
@@ -427,12 +461,23 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         
         context += `🎯 CRITICAL RULES FOR METRICS:\n\n`;
         
-        context += `1. SENTIMENT (Customer's emotion 0.0-1.0):\n`;
-        context += `   - Customer says "angry", "furious", "pissed off" → 0.0-0.15\n`;
-        context += `   - Customer says "frustrated", "annoyed", "upset" → 0.15-0.35\n`;
-        context += `   - Customer sounds neutral, matter-of-fact → 0.35-0.65\n`;
-        context += `   - Customer says "okay", "satisfied", "good" → 0.65-0.85\n`;
-        context += `   - Customer says "happy", "great", "excellent", "thank you so much" → 0.85-1.0\n\n`;
+        context += `1. SENTIMENT (Customer's emotion 0.0-1.0 scale, maps to 0-10 display):\n`;
+        context += `   🔴 EXTREME NEGATIVE:\n`;
+        context += `   - "I'm extremely angry", "worst service ever", "this is bullshit", "I'm furious" → 0.00-0.05 (shows as 0-0.5)\n`;
+        context += `   - "I'm very angry", "this is unacceptable", "I'm pissed off" → 0.05-0.15 (shows as 0.5-1.5)\n`;
+        context += `   🟠 NEGATIVE:\n`;
+        context += `   - "I'm angry", "this is terrible", "I'm really upset" → 0.15-0.25 (shows as 1.5-2.5)\n`;
+        context += `   - "I'm frustrated", "this is annoying", "not happy" → 0.25-0.35 (shows as 2.5-3.5)\n`;
+        context += `   - "I'm a bit annoyed", "this is frustrating", "not great" → 0.35-0.45 (shows as 3.5-4.5)\n`;
+        context += `   🟡 NEUTRAL:\n`;
+        context += `   - "I understand", "okay", "I see", "that's fine", "calm", "chill" → 0.50-0.60 (shows as 5.0-6.0)\n`;
+        context += `   🟢 POSITIVE:\n`;
+        context += `   - "That's good", "I'm satisfied", "that works" → 0.65-0.75 (shows as 6.5-7.5)\n`;
+        context += `   - "I'm happy", "thank you", "that's great" → 0.75-0.85 (shows as 7.5-8.5)\n`;
+        context += `   - "I'm very happy", "you're amazing", "excellent service" → 0.85-0.90 (shows as 8.5-9.0)\n`;
+        context += `   🟢 EXTREME POSITIVE:\n`;
+        context += `   - "I'm extremely happy", "best service ever", "you're incredible", "I'm ecstatic" → 0.90-0.95 (shows as 9.0-9.5)\n`;
+        context += `   - "Best time ever", "couldn't be happier", "absolutely perfect" → 0.95-1.0 (shows as 9.5-10.0)\n\n`;
         
         context += `2. STRESS (Customer's stress level):\n`;
         context += `   - High: Customer angry, urgent, multiple issues, repeating problem\n`;
@@ -445,37 +490,102 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   - 7.0-8.5: Agent empathetic, acknowledges customer feelings\n`;
         context += `   - 8.5-9.5: Agent highly empathetic, validates emotions, offers solutions\n\n`;
         
-        context += `4. QUALITY (Overall conversation quality 40-95):\n`;
-        context += `   - 40-55: Poor - Agent unhelpful, customer very angry, no resolution\n`;
-        context += `   - 55-70: Below average - Some help but customer still frustrated\n`;
-        context += `   - 70-80: Average - Agent trying, customer neutral or slightly satisfied\n`;
-        context += `   - 80-90: Good - Agent helpful, customer satisfied, issue resolving\n`;
-        context += `   - 90-95: Excellent - Agent amazing, customer happy, issue resolved\n\n`;
+        context += `4. QUALITY (Overall conversation quality 0-100, direct mapping):\n`;
+        context += `   🔴 VERY POOR (0-20):\n`;
+        context += `   - Customer extremely angry, agent making it worse, no help at all\n`;
+        context += `   - "This is the worst service I've ever had" → 0-10\n`;
+        context += `   - "You're not helping at all" → 10-20\n`;
+        context += `   🟠 POOR (20-40):\n`;
+        context += `   - Agent unhelpful, customer very frustrated, no resolution\n`;
+        context += `   - "This isn't helping my problem" → 20-30\n`;
+        context += `   - "I'm still waiting for answers" → 30-40\n`;
+        context += `   🟡 BELOW AVERAGE (40-60):\n`;
+        context += `   - Some help but customer still frustrated or confused\n`;
+        context += `   - "I guess that's something" → 40-50\n`;
+        context += `   - "Okay but not what I wanted" → 50-60\n`;
+        context += `   🟢 AVERAGE (60-75):\n`;
+        context += `   - Agent trying, customer neutral or slightly satisfied\n`;
+        context += `   - "I understand, that's reasonable" → 60-65\n`;
+        context += `   - "Okay that makes sense" → 65-70\n`;
+        context += `   - "Thank you for explaining" → 70-75\n`;
+        context += `   🟢 GOOD (75-90):\n`;
+        context += `   - Agent helpful, customer satisfied, issue resolving\n`;
+        context += `   - "That's really helpful" → 75-80\n`;
+        context += `   - "Thank you so much" → 80-85\n`;
+        context += `   - "You've been great" → 85-90\n`;
+        context += `   🟢 EXCELLENT (90-100):\n`;
+        context += `   - Agent amazing, customer very happy, issue fully resolved\n`;
+        context += `   - "This is excellent service" → 90-93\n`;
+        context += `   - "Best customer service ever" → 93-96\n`;
+        context += `   - "You're absolutely incredible" → 96-100\n\n`;
         
-        context += `5. PREDICTED CSAT (Customer satisfaction 1-10):\n`;
-        context += `   - 1-2: Customer extremely angry, demanding escalation\n`;
-        context += `   - 3-4: Customer very frustrated, not satisfied\n`;
-        context += `   - 5-6: Customer neutral, issue not fully resolved\n`;
-        context += `   - 7-8: Customer satisfied, issue being resolved\n`;
-        context += `   - 9-10: Customer very happy, praising agent\n\n`;
+        context += `5. PREDICTED CSAT (Customer satisfaction 0.0-10.0, direct 0-10 scale):\n`;
+        context += `   🔴 EXTREME DISSATISFACTION (0.0-2.0):\n`;
+        context += `   - "Worst experience ever", "I'm furious", "this is unacceptable" → 0.0-1.0\n`;
+        context += `   - "I'm extremely angry", "demand to speak to manager" → 1.0-2.0\n`;
+        context += `   🟠 VERY DISSATISFIED (2.0-4.0):\n`;
+        context += `   - "Very frustrated", "not happy at all" → 2.0-3.0\n`;
+        context += `   - "This is really annoying", "still not resolved" → 3.0-4.0\n`;
+        context += `   🟡 DISSATISFIED (4.0-5.0):\n`;
+        context += `   - "I'm frustrated", "this isn't working" → 4.0-4.5\n`;
+        context += `   - "Not quite what I wanted" → 4.5-5.0\n`;
+        context += `   🟡 NEUTRAL (5.0-6.0):\n`;
+        context += `   - "I understand", "okay", "that's reasonable", "I'm calm", "I'm chill" → 5.0-5.5\n`;
+        context += `   - "That makes sense", "I see" → 5.5-6.0\n`;
+        context += `   🟢 SOMEWHAT SATISFIED (6.0-7.0):\n`;
+        context += `   - "That's good", "I'm satisfied with that" → 6.0-6.5\n`;
+        context += `   - "Thank you for the help" → 6.5-7.0\n`;
+        context += `   🟢 SATISFIED (7.0-8.5):\n`;
+        context += `   - "That's really helpful", "I'm happy with that" → 7.0-7.5\n`;
+        context += `   - "Thank you so much", "great service" → 7.5-8.0\n`;
+        context += `   - "You've been really helpful" → 8.0-8.5\n`;
+        context += `   🟢 VERY SATISFIED (8.5-9.5):\n`;
+        context += `   - "I'm very happy", "excellent service", "you're amazing" → 8.5-9.0\n`;
+        context += `   - "This is great", "couldn't ask for more" → 9.0-9.5\n`;
+        context += `   🟢 EXTREMELY SATISFIED (9.5-10.0):\n`;
+        context += `   - "I'm ecstatic", "best service ever", "you're incredible" → 9.5-9.8\n`;
+        context += `   - "Best time of my life", "absolutely perfect", "10/10" → 9.8-10.0\n\n`;
         
         context += `6. TAGS: ONLY add if customer EXPLICITLY says:\n`;
         context += `   - "I'm a premium member" → "Premium"\n`;
         context += `   - "I've called 3 times" → "Repeat Caller"\n`;
         context += `   - Otherwise → empty array []\n\n`;
         
-        context += `⚠️ EXAMPLES:\n`;
-        context += `Customer: "I'm extremely angry, this is the worst service ever!"\n`;
-        context += `→ sentiment: 0.05, stress: "High", quality: 45, predicted_csat: 1.5\n\n`;
+        context += `⚠️ CRITICAL EXAMPLES - FOLLOW THESE EXACTLY:\n\n`;
         
-        context += `Customer: "This is really frustrating, I need this fixed now."\n`;
-        context += `→ sentiment: 0.25, stress: "High", quality: 60, predicted_csat: 4.0\n\n`;
+        context += `Customer: "This is bullshit, I'm extremely angry, worst service ever!"\n`;
+        context += `→ sentiment: 0.02, stress: "High", quality: 5, predicted_csat: 0.5\n`;
+        context += `→ DISPLAY: Sentiment 0.2/10, Quality 5/100, CSAT 0.5/10\n\n`;
         
-        context += `Customer: "Okay, that sounds reasonable."\n`;
-        context += `→ sentiment: 0.55, stress: "Medium", quality: 72, predicted_csat: 6.5\n\n`;
+        context += `Customer: "I'm very angry about this, this is unacceptable!"\n`;
+        context += `→ sentiment: 0.10, stress: "High", quality: 15, predicted_csat: 1.5\n`;
+        context += `→ DISPLAY: Sentiment 1.0/10, Quality 15/100, CSAT 1.5/10\n\n`;
+        
+        context += `Customer: "I'm frustrated, this is really annoying."\n`;
+        context += `→ sentiment: 0.30, stress: "High", quality: 45, predicted_csat: 3.5\n`;
+        context += `→ DISPLAY: Sentiment 3.0/10, Quality 45/100, CSAT 3.5/10\n\n`;
+        
+        context += `Customer: "I understand, okay, that's reasonable."\n`;
+        context += `→ sentiment: 0.55, stress: "Medium", quality: 65, predicted_csat: 5.5\n`;
+        context += `→ DISPLAY: Sentiment 5.5/10, Quality 65/100, CSAT 5.5/10\n\n`;
+        
+        context += `Customer: "That's good, thank you for the help."\n`;
+        context += `→ sentiment: 0.70, stress: "Low", quality: 78, predicted_csat: 7.0\n`;
+        context += `→ DISPLAY: Sentiment 7.0/10, Quality 78/100, CSAT 7.0/10\n\n`;
         
         context += `Customer: "Thank you so much, you've been really helpful!"\n`;
-        context += `→ sentiment: 0.90, stress: "Low", quality: 88, predicted_csat: 9.0\n\n`;
+        context += `→ sentiment: 0.85, stress: "Low", quality: 87, predicted_csat: 8.5\n`;
+        context += `→ DISPLAY: Sentiment 8.5/10, Quality 87/100, CSAT 8.5/10\n\n`;
+        
+        context += `Customer: "I'm ecstatic! This is the best service ever! You're incredible!"\n`;
+        context += `→ sentiment: 0.96, stress: "Low", quality: 96, predicted_csat: 9.6\n`;
+        context += `→ DISPLAY: Sentiment 9.6/10, Quality 96/100, CSAT 9.6/10\n\n`;
+        
+        context += `🎯 KEY RULES:\n`;
+        context += `- Very angry/furious = sentiment 0.0-0.15 (shows 0-1.5)\n`;
+        context += `- Neutral/calm/understand = sentiment 0.50-0.60 (shows 5.0-6.0)\n`;
+        context += `- Extremely happy/ecstatic = sentiment 0.90-1.0 (shows 9.0-10.0)\n`;
+        context += `- MATCH emotion intensity to score precisely\n\n`;
         
         context += `Return ONLY valid JSON. NO explanations. NO text outside JSON.`;
         
@@ -781,10 +891,10 @@ async function initAudioSpectrum() {
 
 function animateSpectrum() {
     if (!analyser || !isListening) {
-        // Stop animation if not listening
+        // Stop animation if not listening - bars go to ZERO
         const bars = document.querySelectorAll('.spectrum-bar');
         bars.forEach(bar => {
-            bar.style.height = '10%'; // Reset to minimum
+            bar.style.height = '0%'; // Reset to zero when not speaking
         });
         return;
     }
@@ -795,7 +905,7 @@ function animateSpectrum() {
     bars.forEach((bar, index) => {
         const value = dataArray[Math.floor(index * dataArray.length / bars.length)] || 0;
         const height = (value / 255) * 100;
-        bar.style.height = `${Math.max(10, height)}%`;
+        bar.style.height = `${Math.max(0, height)}%`; // Allow bars to go to zero
     });
     
     if (isListening) {
