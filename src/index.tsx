@@ -140,37 +140,78 @@ Respond ONLY with valid JSON (no markdown, no explanation):
   ]
 }`
 
-    // Smart AI analysis (fallback for local development)
+    // Try multiple AI sources in order: Ollama -> Cloudflare -> Fallback
     let analysis
+    let aiSource = 'fallback'
     
+    // Try Ollama first (local)
     try {
-      // Try Cloudflare AI if available
-      const ai = c.env?.AI
+      console.log('Attempting Ollama AI...')
+      const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'qwen2.5:3b',
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: 0.3,
+            num_predict: 500
+          }
+        }),
+        signal: AbortSignal.timeout(10000)
+      })
       
-      if (ai) {
-        const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
-          messages: [
-            { role: 'system', content: 'You are a helpful assistant that responds only in valid JSON.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.2,
-          max_tokens: 500
-        })
-
-        const responseText = response.response || JSON.stringify(response)
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (ollamaResponse.ok) {
+        const ollamaData = await ollamaResponse.json()
+        const responseText = ollamaData.response.trim()
+        console.log('Ollama response:', responseText.substring(0, 200))
         
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
         if (jsonMatch) {
           analysis = JSON.parse(jsonMatch[0])
+          aiSource = 'ollama'
+          console.log('✓ Using Ollama AI')
         } else {
-          throw new Error('No JSON found in response')
+          throw new Error('No JSON in Ollama response')
         }
       } else {
-        // Fallback: Smart rule-based analysis for local development
-        throw new Error('AI not available, using fallback')
+        throw new Error('Ollama not responding')
       }
-    } catch (error) {
-      console.log('Using smart fallback AI:', error.message)
+    } catch (ollamaError) {
+      console.log('Ollama failed:', ollamaError.message)
+      
+      // Try Cloudflare AI
+      try {
+        const ai = c.env?.AI
+        
+        if (ai) {
+          console.log('Attempting Cloudflare AI...')
+          const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
+            messages: [
+              { role: 'system', content: 'You are a helpful assistant that responds only in valid JSON.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.2,
+            max_tokens: 500
+          })
+
+          const responseText = response.response || JSON.stringify(response)
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          
+          if (jsonMatch) {
+            analysis = JSON.parse(jsonMatch[0])
+            aiSource = 'cloudflare'
+            console.log('✓ Using Cloudflare AI')
+          } else {
+            throw new Error('No JSON found in response')
+          }
+        } else {
+          throw new Error('Cloudflare AI not available')
+        }
+      } catch (cloudflareError) {
+        console.log('Cloudflare AI failed:', cloudflareError.message)
+        console.log('Using smart fallback AI')
       
       // Extract customer name using regex
       const nameMatch = text.match(/(?:my name is|i'm|this is|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ||
@@ -266,20 +307,21 @@ Respond ONLY with valid JSON (no markdown, no explanation):
         })
       }
       
-      analysis = {
-        sentiment,
-        empathy,
-        quality,
-        stress,
-        clarity: voiceMetrics && voiceMetrics.energy > 50 ? 'Good' : 'Fair',
-        predictedCSAT,
-        customerName,
-        issue,
-        coaching
+        analysis = {
+          sentiment,
+          empathy,
+          quality,
+          stress,
+          clarity: voiceMetrics && voiceMetrics.energy > 50 ? 'Good' : 'Fair',
+          predictedCSAT,
+          customerName,
+          issue,
+          coaching
+        }
       }
     }
 
-    return c.json({ success: true, analysis })
+    return c.json({ success: true, analysis, aiSource })
     
   } catch (error) {
     console.error('AI Analysis Error:', error)
