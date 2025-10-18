@@ -303,9 +303,15 @@ function animateCustomerSpectrum() {
 
 // Send agent's response to customer
 async function sendAgentMessage(text) {
-    if (!currentSessionId) return;
+    console.log('[AGENT] sendAgentMessage called with:', text);
+    
+    if (!currentSessionId) {
+        console.error('[AGENT] No session ID, cannot send message');
+        return;
+    }
     
     try {
+        console.log('[AGENT] Sending agent message to API...');
         const response = await fetch('/api/session/message', {
             method: 'POST',
             headers: {
@@ -320,10 +326,14 @@ async function sendAgentMessage(text) {
         });
         
         if (!response.ok) {
+            console.error('[AGENT] API error:', response.status, response.statusText);
             throw new Error('Failed to send message');
         }
         
+        console.log('[AGENT] Message sent successfully to API');
+        
         // Add to local transcript
+        console.log('[AGENT] Adding to transcript UI...');
         addTranscriptMessage('agent', text);
         
         // Add to conversation history
@@ -332,6 +342,8 @@ async function sendAgentMessage(text) {
             content: text,
             timestamp: Date.now()
         });
+        
+        console.log('[AGENT] Agent message processed completely');
         
     } catch (error) {
         console.error('Error sending agent message:', error);
@@ -355,17 +367,25 @@ function initializeAgentRecognition() {
     let finalTranscript = '';
     
     agentRecognition.onresult = (event) => {
+        console.log('[AGENT] Recognition result event received');
         let interimTranscript = '';
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
+            const isFinal = event.results[i].isFinal;
+            
+            console.log(`[AGENT] Transcript (${isFinal ? 'FINAL' : 'interim'}): "${transcript}"`);
+            
+            if (isFinal) {
                 finalTranscript += transcript + ' ';
                 
                 // Send agent's message
+                console.log('[AGENT] Sending final agent message:', transcript);
                 sendAgentMessage(transcript);
             } else {
                 interimTranscript += transcript;
+                // Show interim results in real-time (optional)
+                console.log('[AGENT] Interim text:', interimTranscript);
             }
         }
     };
@@ -450,11 +470,16 @@ function toggleAgentSpeaking() {
 function startAgentSpeaking() {
     try {
         console.log('[AGENT] Starting agent speaking mode');
+        console.log('[AGENT] Current session ID:', currentSessionId);
+        
         if (!isAgentRecognitionActive) {
             console.log('[AGENT] Starting speech recognition...');
             agentRecognition.start();
             isAgentRecognitionActive = true;
-            console.log('[AGENT] Speech recognition started');
+            console.log('[AGENT] Speech recognition started successfully');
+            console.log('[AGENT] Recognition is now listening for agent speech...');
+        } else {
+            console.log('[AGENT] Recognition already active');
         }
         isAgentSpeaking = true;
         
