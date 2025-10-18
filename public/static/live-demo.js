@@ -562,8 +562,8 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         `;
         coachingContainer.insertBefore(loadingCard, coachingContainer.firstChild);
         
-        // Build conversation context (keep it short)
-        let context = "You are a call center coach. Analyze the customer's message and give brief coaching.\n\n";
+        // Build comprehensive analysis prompt
+        let context = "You are an AI call center analyst. Analyze the customer's message and provide complete metrics.\n\n";
         context += "RECENT CONVERSATION:\n";
         
         // Only include last 4 messages for context
@@ -573,10 +573,24 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         });
         
         context += `\nCUSTOMER JUST SAID:\n${customerName}: ${customerMessage}\n\n`;
-        context += `Give coaching in this EXACT JSON format (keep message under 150 chars, phrase under 100 chars):\n`;
-        context += `{"type":"empathy","title":"Brief Title","message":"Short coaching advice","phrase":"Suggested response or null","priority":2}\n\n`;
-        context += `Types: de-escalation, empathy, action, transparency, resolution, knowledge\n`;
-        context += `Priority: 1=critical, 2=important, 3=info\n`;
+        context += `Analyze and return ONLY this EXACT JSON format:\n`;
+        context += `{\n`;
+        context += `  "coaching": {\n`;
+        context += `    "type": "de-escalation|empathy|action|transparency|resolution|knowledge",\n`;
+        context += `    "title": "Brief title (max 40 chars)",\n`;
+        context += `    "message": "Short advice (max 120 chars)",\n`;
+        context += `    "phrase": "Suggested response (max 80 chars) or null",\n`;
+        context += `    "priority": 1-3\n`;
+        context += `  },\n`;
+        context += `  "metrics": {\n`;
+        context += `    "empathy": 0-10 (current empathy score),\n`;
+        context += `    "sentiment": 0.0-1.0 (0=very upset, 0.5=neutral, 1.0=happy),\n`;
+        context += `    "stress": "High|Medium|Low",\n`;
+        context += `    "clarity": "Poor|Fair|Good",\n`;
+        context += `    "issue": "Brief issue description (max 30 chars)",\n`;
+        context += `    "tags": ["tag1", "tag2"] (max 2 relevant tags)\n`;
+        context += `  }\n`;
+        context += `}\n\n`;
         context += `Return ONLY valid JSON, nothing else.`;
         
         // Call Ollama directly from browser
@@ -590,7 +604,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 options: {
                     temperature: 0.7,
                     top_p: 0.9,
-                    num_predict: 150
+                    num_predict: 250
                 }
             })
         });
@@ -602,7 +616,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         if (loading) loading.remove();
         
         // Parse the AI response
-        let coaching;
+        let aiAnalysis;
         try {
             const responseText = data.response.trim();
             
@@ -616,60 +630,93 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 const openBraces = (jsonStr.match(/\{/g) || []).length;
                 const closeBraces = (jsonStr.match(/\}/g) || []).length;
                 if (openBraces > closeBraces) {
-                    jsonStr += '}';
+                    for (let i = 0; i < (openBraces - closeBraces); i++) {
+                        jsonStr += '}';
+                    }
                 }
                 
                 // Remove trailing commas before closing brace
-                jsonStr = jsonStr.replace(/,(\s*})/g, '$1');
+                jsonStr = jsonStr.replace(/,(\s*[\]}])/g, '$1');
                 
                 try {
-                    coaching = JSON.parse(jsonStr);
+                    aiAnalysis = JSON.parse(jsonStr);
                 } catch (e) {
-                    // If still fails, extract key info manually
-                    const typeMatch = jsonStr.match(/"type"\s*:\s*"([^"]+)"/);
-                    const titleMatch = jsonStr.match(/"title"\s*:\s*"([^"]+)"/);
-                    const messageMatch = jsonStr.match(/"message"\s*:\s*"([^"]+)"/);
-                    const phraseMatch = jsonStr.match(/"phrase"\s*:\s*"([^"]+)"/);
-                    const priorityMatch = jsonStr.match(/"priority"\s*:\s*(\d+)/);
-                    
-                    coaching = {
-                        type: typeMatch ? typeMatch[1] : 'empathy',
-                        title: titleMatch ? titleMatch[1].substring(0, 50) : 'AI Suggestion',
-                        message: messageMatch ? messageMatch[1].substring(0, 150) : 'Analyze the customer\'s emotional state and respond with empathy.',
-                        phrase: phraseMatch ? phraseMatch[1].substring(0, 120) : null,
-                        priority: priorityMatch ? parseInt(priorityMatch[1]) : 2
-                    };
+                    console.error('JSON parse failed, using fallback:', e);
+                    aiAnalysis = null;
                 }
-                
-                // Ensure fields exist and truncate if needed
-                coaching.type = coaching.type || 'empathy';
-                coaching.title = (coaching.title || 'AI Suggestion').substring(0, 50);
-                coaching.message = (coaching.message || 'No message provided').substring(0, 150);
-                coaching.phrase = coaching.phrase ? coaching.phrase.substring(0, 120) : null;
-                coaching.priority = coaching.priority || 2;
-                
+            }
+            
+            // Validate and extract coaching
+            let coaching;
+            if (aiAnalysis && aiAnalysis.coaching) {
+                coaching = {
+                    type: aiAnalysis.coaching.type || 'empathy',
+                    title: (aiAnalysis.coaching.title || 'AI Suggestion').substring(0, 40),
+                    message: (aiAnalysis.coaching.message || 'Consider the customer\'s emotional state').substring(0, 120),
+                    phrase: aiAnalysis.coaching.phrase ? aiAnalysis.coaching.phrase.substring(0, 80) : null,
+                    priority: aiAnalysis.coaching.priority || 2
+                };
             } else {
-                // No JSON found, use raw text
                 coaching = {
                     type: 'empathy',
                     title: 'AI Suggestion',
-                    message: responseText.substring(0, 150),
+                    message: responseText.substring(0, 120),
                     phrase: null,
                     priority: 2
                 };
             }
+            
+            // Extract and apply metrics
+            if (aiAnalysis && aiAnalysis.metrics) {
+                const metrics = aiAnalysis.metrics;
+                
+                // Update empathy score
+                if (typeof metrics.empathy === 'number') {
+                    updateEmpathyScore(Math.max(0, Math.min(10, metrics.empathy)));
+                    updateMetrics(metrics.empathy);
+                }
+                
+                // Update sentiment
+                if (typeof metrics.sentiment === 'number') {
+                    updateSentimentUI(Math.max(0, Math.min(1, metrics.sentiment)));
+                }
+                
+                // Update stress level
+                if (metrics.stress && ['High', 'Medium', 'Low'].includes(metrics.stress)) {
+                    updateStressLevel(metrics.stress);
+                }
+                
+                // Update clarity
+                if (metrics.clarity && ['Poor', 'Fair', 'Good'].includes(metrics.clarity)) {
+                    updateClarity(metrics.clarity);
+                }
+                
+                // Update customer info (issue and tags)
+                const customerInfo = {};
+                if (metrics.issue) {
+                    customerInfo.issue = metrics.issue.substring(0, 30);
+                }
+                if (metrics.tags && Array.isArray(metrics.tags)) {
+                    customerInfo.tags = metrics.tags.slice(0, 2);
+                }
+                if (Object.keys(customerInfo).length > 0) {
+                    updateCustomerInfo(customerInfo);
+                }
+            }
+            
+            // Add coaching card
+            addCoachingCard(coaching, true);
+            
         } catch (parseError) {
             console.error('Failed to parse AI response:', parseError);
-            coaching = {
+            addCoachingCard({
                 type: 'action',
                 title: 'AI Analysis',
-                message: data.response.substring(0, 150),
+                message: data.response.substring(0, 120),
                 phrase: null,
                 priority: 2
-            };
+            }, true);
         }
-        
-        addCoachingCard(coaching, true);
         
     } catch (error) {
         console.error('Failed to get AI coaching:', error);
