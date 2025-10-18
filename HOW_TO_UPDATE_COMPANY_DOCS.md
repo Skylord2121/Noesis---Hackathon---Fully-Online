@@ -218,7 +218,7 @@ curl -X POST http://localhost:3000/api/ai-analysis \
 
 - **Dashboard:** https://3000-ib0z8zuo7krasmb055710-b237eb32.sandbox.novita.ai
 - **Knowledge File:** `/home/user/webapp/config/company-knowledge.json`
-- **GitHub Repo:** https://github.com/Skylord2121/Noesis---Oct-18
+- **GitHub Repo:** https://github.com/Skylord2121/Noesis---Hackathon---Fully-Online
 
 ---
 
