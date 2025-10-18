@@ -463,7 +463,8 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `📊 ANALYZE THE CUSTOMER'S EMOTIONS:\n`;
         context += `- How angry/frustrated/happy is the CUSTOMER?\n`;
         context += `- How stressed is the CUSTOMER?\n`;
-        context += `- How satisfied is the CUSTOMER with the service?\n\n`;
+        context += `- How satisfied is the CUSTOMER with the service?\n`;
+        context += `- What SPECIFIC PROBLEM did the customer mention (if any)?\n\n`;
         
         context += `Return ONLY this EXACT JSON format:\n`;
         context += `{\n`;
@@ -611,7 +612,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   🎯 RULES:\n`;
         context += `   - Look for CONCRETE PROBLEMS mentioned by customer\n`;
         context += `   - Extract the SITUATION, not the feeling\n`;
-        context += `   📝 EXPLICIT MAPPING EXAMPLES:\n`;
+        context += `   📝 EXPLICIT MAPPING EXAMPLES (FOLLOW THESE EXACTLY):\n`;
         context += `   - Customer: "My package hasn't arrived" → issue: "Package not arrived"\n`;
         context += `   - Customer: "I got charged twice" → issue: "Double charged"\n`;
         context += `   - Customer: "My bag is missing" → issue: "Missing bag"\n`;
@@ -620,8 +621,12 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   - Customer: "I can't access my account" → issue: "Account access issue"\n`;
         context += `   - Customer: "My order was cancelled" → issue: "Order cancelled"\n`;
         context += `   - Customer: "I need a refund" → issue: "Refund request"\n`;
-        context += `   - If no specific problem mentioned yet → null\n`;
-        context += `   - Once set, use "KEEP_UNCHANGED" to preserve it\n\n`;
+        context += `   - Customer: "Where is my package?" → issue: "Package location"\n`;
+        context += `   - Customer: "I want to return this" → issue: "Return request"\n`;
+        context += `   🚨 CRITICAL: If customer mentions ANY problem, extract it as issue!\n`;
+        context += `   - Look for keywords: package, order, refund, missing, wrong, damaged, delayed, lost\n`;
+        context += `   - If TRULY no problem mentioned (just greeting/name) → null\n`;
+        context += `   - Once set in previous message, use "KEEP_UNCHANGED" to preserve it\n\n`;
         
         context += `8. CUSTOMER NAME: Extract if customer introduces themselves:\n`;
         context += `   - "My name is John" → "John"\n`;
@@ -817,10 +822,14 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 }
                 
                 // ISSUE: Only set once when customer describes actual problem (not emotion)
-                if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null) {
+                console.log('🔍 Issue detection - customerIssueFixed:', customerIssueFixed, 'metrics.issue:', metrics.issue);
+                
+                if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null && metrics.issue !== 'null') {
                     // Validate that issue is not an emotion word
                     const emotionWords = ['angry', 'frustrated', 'upset', 'happy', 'satisfied', 'annoyed', 'mad', 'furious'];
                     const isEmotion = emotionWords.some(word => metrics.issue.toLowerCase().includes(word));
+                    
+                    console.log('🔍 Issue validation - isEmotion:', isEmotion, 'issue text:', metrics.issue);
                     
                     if (!isEmotion) {
                         customerInfo.issue = metrics.issue.substring(0, 30);
@@ -829,6 +838,10 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     } else {
                         console.log('❌ Rejected emotion as issue:', metrics.issue);
                     }
+                } else if (!customerIssueFixed) {
+                    console.log('⚠️ Issue not detected from AI response');
+                } else {
+                    console.log('ℹ️ Issue already fixed, keeping:', customerIssue.textContent);
                 }
                 if (metrics.tags && Array.isArray(metrics.tags)) {
                     customerInfo.tags = metrics.tags.slice(0, 4);
