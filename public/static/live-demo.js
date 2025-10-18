@@ -388,7 +388,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         `;
         coachingContainer.insertBefore(loadingCard, coachingContainer.firstChild);
         
-        let context = "You are an AI call center analyst. Analyze the customer's message and provide complete metrics.\n\n";
+        let context = "You are an AI call center quality analyst. Analyze CUSTOMER emotions and AGENT performance.\n\n";
         context += "RECENT CONVERSATION:\n";
         
         const recentHistory = conversationHistory.slice(-4);
@@ -396,8 +396,13 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             context += `${msg.speaker === 'agent' ? agentName : customerName}: ${msg.text}\n`;
         });
         
-        context += `\nCUSTOMER JUST SAID:\n${customerName}: ${customerMessage}\n\n`;
-        context += `Analyze and return ONLY this EXACT JSON format:\n`;
+        context += `\n🔴 CUSTOMER JUST SAID: "${customerMessage}"\n\n`;
+        context += `📊 ANALYZE THE CUSTOMER'S EMOTIONS:\n`;
+        context += `- How angry/frustrated/happy is the CUSTOMER?\n`;
+        context += `- How stressed is the CUSTOMER?\n`;
+        context += `- How satisfied is the CUSTOMER with the service?\n\n`;
+        
+        context += `Return ONLY this EXACT JSON format:\n`;
         context += `{\n`;
         context += `  "coaching": {\n`;
         context += `    "type": "de-escalation|empathy|action|transparency|resolution|knowledge",\n`;
@@ -407,23 +412,71 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "priority": 1-3\n`;
         context += `  },\n`;
         context += `  "metrics": {\n`;
-        context += `    "empathy": 4.0-9.5 (ANALYZE AGENT EMPATHY: cold/robotic=4-6, neutral=6-7, warm/empathetic=7.5-9.5),\n`;
-        context += `    "sentiment": 0.0-1.0 (CUSTOMER EMOTION: 0-0.2=angry/upset, 0.2-0.4=frustrated, 0.4-0.6=neutral, 0.6-0.8=satisfied, 0.8-1.0=happy),\n`;
-        context += `    "stress": "High|Medium|Low" (CUSTOMER STRESS),\n`;
-        context += `    "clarity": "Poor|Fair|Good" (CUSTOMER COMMUNICATION),\n`;
-        context += `    "quality": 40-95 (CONVERSATION QUALITY: poor=40-60, average=60-75, good=75-85, excellent=85-95),\n`;
-        context += `    "predicted_csat": 1.0-10.0 (PREDICTED SATISFACTION: angry=1-3, frustrated=3-5, neutral=5-7, satisfied=7-8, happy=8-10),\n`;
-        context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved" (update progress max 4 times),\n`;
-        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue (max 25 chars) ONLY if customer mentions a problem"'},\n`;
-        context += `    "tags": ["Max 3"] (ONLY if explicitly mentioned: "Premium Account", "Repeat Caller", "Business Customer", "VIP" - DO NOT infer or assume)\n`;
+        context += `    "empathy": 4.0-9.5,\n`;
+        context += `    "sentiment": 0.0-1.0,\n`;
+        context += `    "stress": "High|Medium|Low",\n`;
+        context += `    "clarity": "Poor|Fair|Good",\n`;
+        context += `    "quality": 40-95,\n`;
+        context += `    "predicted_csat": 1.0-10.0,\n`;
+        context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved",\n`;
+        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue (max 25 chars) or null"'},\n`;
+        context += `    "tags": ["Max 3 or empty array"]\n`;
         context += `  }\n`;
         context += `}\n\n`;
-        context += `IMPORTANT:\n`;
-        context += `- Tags: ONLY add if customer explicitly mentions (e.g., "I work from home" → "Work From Home"). NO assumptions!\n`;
-        context += `- Sentiment: Reflect CUSTOMER emotion accurately ("I'm angry" = 0.0-0.2, NOT 0.7)\n`;
-        context += `- Quality: Base on ENTIRE conversation quality, not just empathy\n`;
-        context += `- CSAT: Predict customer satisfaction score (1-10) based on tone and resolution\n`;
-        context += `Return ONLY valid JSON, nothing else.`;
+        
+        context += `🎯 CRITICAL RULES FOR METRICS:\n\n`;
+        
+        context += `1. SENTIMENT (Customer's emotion 0.0-1.0):\n`;
+        context += `   - Customer says "angry", "furious", "pissed off" → 0.0-0.15\n`;
+        context += `   - Customer says "frustrated", "annoyed", "upset" → 0.15-0.35\n`;
+        context += `   - Customer sounds neutral, matter-of-fact → 0.35-0.65\n`;
+        context += `   - Customer says "okay", "satisfied", "good" → 0.65-0.85\n`;
+        context += `   - Customer says "happy", "great", "excellent", "thank you so much" → 0.85-1.0\n\n`;
+        
+        context += `2. STRESS (Customer's stress level):\n`;
+        context += `   - High: Customer angry, urgent, multiple issues, repeating problem\n`;
+        context += `   - Medium: Customer concerned, somewhat worried, needs resolution\n`;
+        context += `   - Low: Customer calm, patient, understanding\n\n`;
+        
+        context += `3. EMPATHY (Agent's empathy - how empathetic the AGENT is being):\n`;
+        context += `   - 4.0-5.5: Agent robotic, cold, dismissive, no acknowledgment of feelings\n`;
+        context += `   - 5.5-7.0: Agent neutral, professional but not warm\n`;
+        context += `   - 7.0-8.5: Agent empathetic, acknowledges customer feelings\n`;
+        context += `   - 8.5-9.5: Agent highly empathetic, validates emotions, offers solutions\n\n`;
+        
+        context += `4. QUALITY (Overall conversation quality 40-95):\n`;
+        context += `   - 40-55: Poor - Agent unhelpful, customer very angry, no resolution\n`;
+        context += `   - 55-70: Below average - Some help but customer still frustrated\n`;
+        context += `   - 70-80: Average - Agent trying, customer neutral or slightly satisfied\n`;
+        context += `   - 80-90: Good - Agent helpful, customer satisfied, issue resolving\n`;
+        context += `   - 90-95: Excellent - Agent amazing, customer happy, issue resolved\n\n`;
+        
+        context += `5. PREDICTED CSAT (Customer satisfaction 1-10):\n`;
+        context += `   - 1-2: Customer extremely angry, demanding escalation\n`;
+        context += `   - 3-4: Customer very frustrated, not satisfied\n`;
+        context += `   - 5-6: Customer neutral, issue not fully resolved\n`;
+        context += `   - 7-8: Customer satisfied, issue being resolved\n`;
+        context += `   - 9-10: Customer very happy, praising agent\n\n`;
+        
+        context += `6. TAGS: ONLY add if customer EXPLICITLY says:\n`;
+        context += `   - "I'm a premium member" → "Premium"\n`;
+        context += `   - "I've called 3 times" → "Repeat Caller"\n`;
+        context += `   - Otherwise → empty array []\n\n`;
+        
+        context += `⚠️ EXAMPLES:\n`;
+        context += `Customer: "I'm extremely angry, this is the worst service ever!"\n`;
+        context += `→ sentiment: 0.05, stress: "High", quality: 45, predicted_csat: 1.5\n\n`;
+        
+        context += `Customer: "This is really frustrating, I need this fixed now."\n`;
+        context += `→ sentiment: 0.25, stress: "High", quality: 60, predicted_csat: 4.0\n\n`;
+        
+        context += `Customer: "Okay, that sounds reasonable."\n`;
+        context += `→ sentiment: 0.55, stress: "Medium", quality: 72, predicted_csat: 6.5\n\n`;
+        
+        context += `Customer: "Thank you so much, you've been really helpful!"\n`;
+        context += `→ sentiment: 0.90, stress: "Low", quality: 88, predicted_csat: 9.0\n\n`;
+        
+        context += `Return ONLY valid JSON. NO explanations. NO text outside JSON.`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
             method: 'POST',
@@ -433,9 +486,9 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 prompt: context,
                 stream: false,
                 options: {
-                    temperature: 0.7,
+                    temperature: 0.5,  // Lower temperature for more consistent scoring
                     top_p: 0.9,
-                    num_predict: 250
+                    num_predict: 300   // More tokens for detailed analysis
                 }
             })
         });
