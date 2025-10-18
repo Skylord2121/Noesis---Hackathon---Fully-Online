@@ -562,29 +562,22 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         `;
         coachingContainer.insertBefore(loadingCard, coachingContainer.firstChild);
         
-        // Build conversation context
-        let context = "You are an expert call center coach analyzing a customer service conversation in real-time.\n\n";
-        context += "CONVERSATION HISTORY:\n";
+        // Build conversation context (keep it short)
+        let context = "You are a call center coach. Analyze the customer's message and give brief coaching.\n\n";
+        context += "RECENT CONVERSATION:\n";
         
-        conversationHistory.forEach(msg => {
+        // Only include last 4 messages for context
+        const recentHistory = conversationHistory.slice(-4);
+        recentHistory.forEach(msg => {
             context += `${msg.speaker === 'agent' ? agentName : customerName}: ${msg.text}\n`;
         });
         
-        context += `\nLATEST CUSTOMER MESSAGE:\n${customerName}: ${customerMessage}\n\n`;
-        context += `TASK: Analyze the customer's latest message and provide coaching for the agent (${agentName}). Focus on:\n`;
-        context += `1. Customer's emotional state (frustration, confusion, satisfaction, etc.)\n`;
-        context += `2. What the agent should do next\n`;
-        context += `3. Specific empathetic phrases the agent can use\n`;
-        context += `4. Any red flags or escalation risks\n\n`;
-        context += `Respond in JSON format with these fields:\n`;
-        context += `{\n`;
-        context += `  "type": "de-escalation|empathy|action|transparency|resolution|knowledge",\n`;
-        context += `  "title": "Brief title for the coaching card",\n`;
-        context += `  "message": "Detailed coaching advice for the agent",\n`;
-        context += `  "phrase": "An exact phrase the agent can use (or null if not applicable)",\n`;
-        context += `  "priority": 1-3 (1=critical, 2=important, 3=nice-to-have)\n`;
-        context += `}\n\n`;
-        context += `Only return the JSON object, nothing else.`;
+        context += `\nCUSTOMER JUST SAID:\n${customerName}: ${customerMessage}\n\n`;
+        context += `Give coaching in this EXACT JSON format (keep message under 150 chars, phrase under 100 chars):\n`;
+        context += `{"type":"empathy","title":"Brief Title","message":"Short coaching advice","phrase":"Suggested response or null","priority":2}\n\n`;
+        context += `Types: de-escalation, empathy, action, transparency, resolution, knowledge\n`;
+        context += `Priority: 1=critical, 2=important, 3=info\n`;
+        context += `Return ONLY valid JSON, nothing else.`;
         
         // Call Ollama directly from browser
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -612,30 +605,65 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         let coaching;
         try {
             const responseText = data.response.trim();
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            
+            // Try to extract and complete JSON
+            let jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            
             if (jsonMatch) {
-                coaching = JSON.parse(jsonMatch[0]);
-                // Truncate long messages
-                if (coaching.message && coaching.message.length > 150) {
-                    coaching.message = coaching.message.substring(0, 150) + '...';
+                let jsonStr = jsonMatch[0];
+                
+                // Try to fix incomplete JSON by closing it properly
+                const openBraces = (jsonStr.match(/\{/g) || []).length;
+                const closeBraces = (jsonStr.match(/\}/g) || []).length;
+                if (openBraces > closeBraces) {
+                    jsonStr += '}';
                 }
-                if (coaching.phrase && coaching.phrase.length > 120) {
-                    coaching.phrase = coaching.phrase.substring(0, 120) + '...';
+                
+                // Remove trailing commas before closing brace
+                jsonStr = jsonStr.replace(/,(\s*})/g, '$1');
+                
+                try {
+                    coaching = JSON.parse(jsonStr);
+                } catch (e) {
+                    // If still fails, extract key info manually
+                    const typeMatch = jsonStr.match(/"type"\s*:\s*"([^"]+)"/);
+                    const titleMatch = jsonStr.match(/"title"\s*:\s*"([^"]+)"/);
+                    const messageMatch = jsonStr.match(/"message"\s*:\s*"([^"]+)"/);
+                    const phraseMatch = jsonStr.match(/"phrase"\s*:\s*"([^"]+)"/);
+                    const priorityMatch = jsonStr.match(/"priority"\s*:\s*(\d+)/);
+                    
+                    coaching = {
+                        type: typeMatch ? typeMatch[1] : 'empathy',
+                        title: titleMatch ? titleMatch[1].substring(0, 50) : 'AI Suggestion',
+                        message: messageMatch ? messageMatch[1].substring(0, 150) : 'Analyze the customer\'s emotional state and respond with empathy.',
+                        phrase: phraseMatch ? phraseMatch[1].substring(0, 120) : null,
+                        priority: priorityMatch ? parseInt(priorityMatch[1]) : 2
+                    };
                 }
+                
+                // Ensure fields exist and truncate if needed
+                coaching.type = coaching.type || 'empathy';
+                coaching.title = (coaching.title || 'AI Suggestion').substring(0, 50);
+                coaching.message = (coaching.message || 'No message provided').substring(0, 150);
+                coaching.phrase = coaching.phrase ? coaching.phrase.substring(0, 120) : null;
+                coaching.priority = coaching.priority || 2;
+                
             } else {
+                // No JSON found, use raw text
                 coaching = {
                     type: 'empathy',
                     title: 'AI Suggestion',
-                    message: responseText.substring(0, 120),
+                    message: responseText.substring(0, 150),
                     phrase: null,
                     priority: 2
                 };
             }
         } catch (parseError) {
+            console.error('Failed to parse AI response:', parseError);
             coaching = {
                 type: 'action',
                 title: 'AI Analysis',
-                message: data.response.substring(0, 120),
+                message: data.response.substring(0, 150),
                 phrase: null,
                 priority: 2
             };
