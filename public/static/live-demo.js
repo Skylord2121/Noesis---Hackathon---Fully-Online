@@ -241,6 +241,7 @@ let conversationHistory = []; // Track full conversation for AI context
 let customerIssueFixed = false; // Once issue is identified, keep it fixed
 let statusUpdateCount = 0; // Limit status updates to max 4
 let aiRequestCount = 0; // Track AI requests to limit frequency
+let customerHasSpoken = false; // Track if customer has spoken yet
 
 // DOM elements
 const transcriptMessages = document.getElementById('transcript-messages');
@@ -460,14 +461,8 @@ function removeTypingIndicator() {
 }
 
 function addCoachingCard(coaching, isAI = false) {
-    // Remove old cards if priority is 1
-    if (coaching.priority === 1) {
-        const oldCards = coachingContainer.querySelectorAll('.coaching-card');
-        oldCards.forEach(card => {
-            card.classList.add('fade-out');
-            setTimeout(() => card.remove(), 300);
-        });
-    }
+    // Don't remove old cards - keep all coaching suggestions visible
+    // Users can scroll through the history
     
     // Determine card styling based on type
     let iconClass, iconBg, borderColor, title;
@@ -821,12 +816,18 @@ function simulateCall() {
                 updateCustomerInfo(item.customerInfo);
             }
             
-            // Update sentiment and empathy
-            updateSentimentUI(item.sentiment);
-            updateEmpathyScore(item.empathy);
-            updateStressLevel(item.stress);
-            updateClarity(item.clarity);
-            updateMetrics(item.empathy);
+            // Update sentiment and empathy (only after customer speaks)
+            if (item.speaker === 'customer') {
+                customerHasSpoken = true;
+            }
+            
+            if (customerHasSpoken) {
+                updateSentimentUI(item.sentiment);
+                updateEmpathyScore(item.empathy);
+                updateStressLevel(item.stress);
+                updateClarity(item.clarity);
+                updateMetrics(item.empathy);
+            }
             
             // Add coaching if present (original mock coaching)
             if (item.coaching) {
