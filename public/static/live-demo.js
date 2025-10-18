@@ -460,11 +460,10 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         });
         
         context += `\n🔴 CUSTOMER JUST SAID: "${customerMessage}"\n\n`;
-        context += `📊 ANALYZE THE CUSTOMER'S EMOTIONS:\n`;
-        context += `- How angry/frustrated/happy is the CUSTOMER?\n`;
-        context += `- How stressed is the CUSTOMER?\n`;
-        context += `- How satisfied is the CUSTOMER with the service?\n`;
-        context += `- What SPECIFIC PROBLEM did the customer mention (if any)?\n\n`;
+        context += `🎯 YOUR TASK: Read what the customer ACTUALLY said above. Match your scores to their EXACT WORDS.\n\n`;
+        context += `If customer says "I'm happy" or "I'm in a great mood" → HIGH scores (empathy 8-9, quality 80-90)\n`;
+        context += `If customer says "I'm angry" or "I'm frustrated" → LOW scores (empathy 1-2, quality 10-20)\n`;
+        context += `If customer says "I'm okay" or neutral → MEDIUM scores (empathy 5-6, quality 60-70)\n\n`;
         
         context += `Return ONLY this EXACT JSON format:\n`;
         context += `{\n`;
@@ -491,193 +490,49 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         
         context += `🎯 CRITICAL RULES FOR METRICS:\n\n`;
         
-        context += `1. SENTIMENT (Customer's emotion 0.0-1.0 scale, maps to 0-10 display):\n`;
-        context += `   🔴 EXTREME NEGATIVE:\n`;
-        context += `   - "I'm extremely angry", "worst service ever", "this is bullshit", "I'm furious" → 0.00-0.05 (shows as 0-0.5)\n`;
-        context += `   - "I'm very angry", "this is unacceptable", "I'm pissed off" → 0.05-0.15 (shows as 0.5-1.5)\n`;
-        context += `   🟠 NEGATIVE:\n`;
-        context += `   - "I'm angry", "this is terrible", "I'm really upset" → 0.15-0.25 (shows as 1.5-2.5)\n`;
-        context += `   - "I'm frustrated", "this is annoying", "not happy" → 0.25-0.35 (shows as 2.5-3.5)\n`;
-        context += `   - "I'm a bit annoyed", "this is frustrating", "not great" → 0.35-0.45 (shows as 3.5-4.5)\n`;
-        context += `   🟡 NEUTRAL:\n`;
-        context += `   - "I understand", "okay", "I see", "that's fine", "calm", "chill" → 0.50-0.60 (shows as 5.0-6.0)\n`;
-        context += `   🟢 POSITIVE:\n`;
-        context += `   - "That's good", "I'm satisfied", "that works" → 0.65-0.75 (shows as 6.5-7.5)\n`;
-        context += `   - "I'm happy", "thank you", "that's great" → 0.75-0.85 (shows as 7.5-8.5)\n`;
-        context += `   - "I'm very happy", "you're amazing", "excellent service" → 0.85-0.90 (shows as 8.5-9.0)\n`;
-        context += `   🟢 EXTREME POSITIVE:\n`;
-        context += `   - "I'm extremely happy", "best service ever", "you're incredible", "I'm ecstatic" → 0.90-0.95 (shows as 9.0-9.5)\n`;
-        context += `   - "Best time ever", "couldn't be happier", "absolutely perfect" → 0.95-1.0 (shows as 9.5-10.0)\n\n`;
+        context += `1. SENTIMENT (0.0-1.0): Customer's emotion\n`;
+        context += `   - Angry/frustrated/upset → 0.0-0.3\n`;
+        context += `   - Neutral/okay/calm → 0.4-0.6\n`;
+        context += `   - Happy/satisfied/great mood → 0.7-1.0\n\n`;
         
-        context += `2. STRESS (Customer's stress level):\n`;
-        context += `   - High: Customer angry, urgent, multiple issues, repeating problem\n`;
-        context += `   - Medium: Customer concerned, somewhat worried, needs resolution\n`;
-        context += `   - Low: Customer calm, patient, understanding\n\n`;
+        context += `2. STRESS:\n`;
+        context += `   - High: Angry, urgent, repeating\n`;
+        context += `   - Medium: Concerned, worried\n`;
+        context += `   - Low: Calm, patient, happy\n\n`;
         
-        context += `3. EMPATHY (Customer's emotional satisfaction 1.0-10.0 scale - MINIMUM 1.0):\n`;
-        context += `   🔴 VERY UNHAPPY (1.0-2.5):\n`;
-        context += `   - Customer extremely angry, furious, worst experience → 1.0-1.5\n`;
-        context += `   - Customer very angry, unacceptable service → 1.5-2.0\n`;
-        context += `   - Customer angry, terrible experience → 2.0-2.5\n`;
-        context += `   🟠 UNHAPPY (2.5-4.5):\n`;
-        context += `   - Customer frustrated, annoyed, not happy → 2.5-3.5\n`;
-        context += `   - Customer somewhat dissatisfied, issues not resolved → 3.5-4.5\n`;
-        context += `   🟡 NEUTRAL (4.5-6.0):\n`;
-        context += `   - Customer slightly negative but calming down → 4.5-5.0\n`;
-        context += `   - Customer neutral, calm, understanding, reasonable → 5.0-6.0\n`;
-        context += `   🟢 SATISFIED (6.0-8.0):\n`;
-        context += `   - Customer satisfied, problem being addressed → 6.0-7.0\n`;
-        context += `   - Customer happy, thankful, good experience → 7.0-8.0\n`;
-        context += `   🟢 VERY HAPPY (8.0-10.0):\n`;
-        context += `   - Customer very happy, excellent service, grateful → 8.0-9.0\n`;
-        context += `   - Customer ecstatic, best service ever, extremely satisfied → 9.0-10.0\n\n`;
+        context += `3. EMPATHY (1.0-10.0): Customer happiness level\n`;
+        context += `   - Angry/furious → 1.0-2.0\n`;
+        context += `   - Frustrated → 2.0-4.0\n`;
+        context += `   - Neutral/calm → 5.0-6.0\n`;
+        context += `   - Happy/satisfied → 7.0-8.0\n`;
+        context += `   - Very happy/great mood → 8.0-10.0\n\n`;
         
-        context += `4. QUALITY (Overall conversation quality 10-100 - MINIMUM 10):\n`;
-        context += `   🔴 VERY POOR (10-25):\n`;
-        context += `   - Customer extremely angry, agent making it worse, no help at all\n`;
-        context += `   - "This is the worst service I've ever had" → 10-15\n`;
-        context += `   - "You're not helping at all" → 15-20\n`;
-        context += `   - "I want to speak to your manager" → 20-25\n`;
-        context += `   🟠 POOR (25-45):\n`;
-        context += `   - Agent unhelpful, customer very frustrated, no resolution\n`;
-        context += `   - "This isn't helping my problem" → 25-35\n`;
-        context += `   - "I'm still waiting for answers" → 35-45\n`;
-        context += `   🟡 BELOW AVERAGE (45-60):\n`;
-        context += `   - Some help but customer still frustrated or confused\n`;
-        context += `   - "I guess that's something" → 45-52\n`;
-        context += `   - "Okay but not what I wanted" → 52-60\n`;
-        context += `   🟢 AVERAGE (60-75):\n`;
-        context += `   - Agent trying, customer neutral or slightly satisfied\n`;
-        context += `   - "I understand, that's reasonable" → 60-65\n`;
-        context += `   - "Okay that makes sense" → 65-70\n`;
-        context += `   - "Thank you for explaining" → 70-75\n`;
-        context += `   🟢 GOOD (75-90):\n`;
-        context += `   - Agent helpful, customer satisfied, issue resolving\n`;
-        context += `   - "That's really helpful" → 75-80\n`;
-        context += `   - "Thank you so much" → 80-85\n`;
-        context += `   - "You've been great" → 85-90\n`;
-        context += `   🟢 EXCELLENT (90-100):\n`;
-        context += `   - Agent amazing, customer very happy, issue fully resolved\n`;
-        context += `   - "This is excellent service" → 90-93\n`;
-        context += `   - "Best customer service ever" → 93-96\n`;
-        context += `   - "You're absolutely incredible" → 96-100\n\n`;
+        context += `4. QUALITY (10-100): Call quality\n`;
+        context += `   - Customer angry → 10-30\n`;
+        context += `   - Customer frustrated → 30-50\n`;
+        context += `   - Customer neutral → 50-70\n`;
+        context += `   - Customer happy → 70-85\n`;
+        context += `   - Customer very happy → 85-100\n\n`;
         
-        context += `5. PREDICTED CSAT (Customer satisfaction 0.0-10.0, direct 0-10 scale):\n`;
-        context += `   🔴 EXTREME DISSATISFACTION (0.0-2.0):\n`;
-        context += `   - "Worst experience ever", "I'm furious", "this is unacceptable" → 0.0-1.0\n`;
-        context += `   - "I'm extremely angry", "demand to speak to manager" → 1.0-2.0\n`;
-        context += `   🟠 VERY DISSATISFIED (2.0-4.0):\n`;
-        context += `   - "Very frustrated", "not happy at all" → 2.0-3.0\n`;
-        context += `   - "This is really annoying", "still not resolved" → 3.0-4.0\n`;
-        context += `   🟡 DISSATISFIED (4.0-5.0):\n`;
-        context += `   - "I'm frustrated", "this isn't working" → 4.0-4.5\n`;
-        context += `   - "Not quite what I wanted" → 4.5-5.0\n`;
-        context += `   🟡 NEUTRAL (5.0-6.0):\n`;
-        context += `   - "I understand", "okay", "that's reasonable", "I'm calm", "I'm chill" → 5.0-5.5\n`;
-        context += `   - "That makes sense", "I see" → 5.5-6.0\n`;
-        context += `   🟢 SOMEWHAT SATISFIED (6.0-7.0):\n`;
-        context += `   - "That's good", "I'm satisfied with that" → 6.0-6.5\n`;
-        context += `   - "Thank you for the help" → 6.5-7.0\n`;
-        context += `   🟢 SATISFIED (7.0-8.5):\n`;
-        context += `   - "That's really helpful", "I'm happy with that" → 7.0-7.5\n`;
-        context += `   - "Thank you so much", "great service" → 7.5-8.0\n`;
-        context += `   - "You've been really helpful" → 8.0-8.5\n`;
-        context += `   🟢 VERY SATISFIED (8.5-9.5):\n`;
-        context += `   - "I'm very happy", "excellent service", "you're amazing" → 8.5-9.0\n`;
-        context += `   - "This is great", "couldn't ask for more" → 9.0-9.5\n`;
-        context += `   🟢 EXTREMELY SATISFIED (9.5-10.0):\n`;
-        context += `   - "I'm ecstatic", "best service ever", "you're incredible" → 9.5-9.8\n`;
-        context += `   - "Best time of my life", "absolutely perfect", "10/10" → 9.8-10.0\n\n`;
+        context += `5. PREDICTED CSAT (0.0-10.0): Customer satisfaction\n`;
+        context += `   - Match the customer's mood to score\n`;
+        context += `   - Angry → 0-2, Frustrated → 2-4, Neutral → 5-6, Happy → 7-8, Very happy → 8-10\n\n`;
         
-        context += `6. STATUS (Call status progression - start Open, stay Open until truly resolved):\n`;
-        context += `   - Open: Customer just called, issue not yet identified or understood\n`;
-        context += `   - Investigating: Agent asking questions to understand the problem\n`;
-        context += `   - Ongoing: Agent working on solution, processing request\n`;
-        context += `   - Resolving: Solution provided, waiting for customer confirmation\n`;
-        context += `   - Resolved: Customer EXPLICITLY confirms issue is fixed ("that worked", "problem solved", etc.)\n`;
-        context += `   ⚠️ CRITICAL: Status should stay "Open" until agent starts helping. Don't jump to "Resolved" just because customer is happy!\n\n`;
+        context += `6. STATUS: Open → Investigating → Ongoing → Resolving → Resolved\n\n`;
         
-        context += `7. ISSUE (What is the customer's ACTUAL PROBLEM - NOT their emotion):\n`;
-        context += `   ✅ CORRECT examples:\n`;
-        context += `   - "Package delayed" (customer said package is late)\n`;
-        context += `   - "Wrong item received" (customer got wrong product)\n`;
-        context += `   - "Refund not processed" (customer waiting for refund)\n`;
-        context += `   - "Account locked" (can't log in)\n`;
-        context += `   - "Damaged item" (product arrived broken)\n`;
-        context += `   - "Missing order" (package never arrived)\n`;
-        context += `   ❌ WRONG examples (NO EMOTIONS):\n`;
-        context += `   - "Customer frustrated" ❌\n`;
-        context += `   - "Customer angry" ❌\n`;
-        context += `   - "Customer upset" ❌\n`;
-        context += `   🎯 RULES:\n`;
-        context += `   - Look for CONCRETE PROBLEMS mentioned by customer\n`;
-        context += `   - Extract the SITUATION, not the feeling\n`;
-        context += `   📝 EXPLICIT MAPPING EXAMPLES (FOLLOW THESE EXACTLY):\n`;
-        context += `   - Customer: "My package hasn't arrived" → issue: "Package not arrived"\n`;
-        context += `   - Customer: "I got charged twice" → issue: "Double charged"\n`;
-        context += `   - Customer: "My bag is missing" → issue: "Missing bag"\n`;
-        context += `   - Customer: "I received the wrong item" → issue: "Wrong item received"\n`;
-        context += `   - Customer: "The product is damaged" → issue: "Damaged product"\n`;
-        context += `   - Customer: "I can't access my account" → issue: "Account access issue"\n`;
-        context += `   - Customer: "My order was cancelled" → issue: "Order cancelled"\n`;
-        context += `   - Customer: "I need a refund" → issue: "Refund request"\n`;
-        context += `   - Customer: "Where is my package?" → issue: "Package location"\n`;
-        context += `   - Customer: "I want to return this" → issue: "Return request"\n`;
-        context += `   🚨 CRITICAL: If customer mentions ANY problem, extract it as issue!\n`;
-        context += `   - Look for keywords: package, order, refund, missing, wrong, damaged, delayed, lost\n`;
-        context += `   - If TRULY no problem mentioned (just greeting/name) → null\n`;
-        context += `   - Once set in previous message, use "KEEP_UNCHANGED" to preserve it\n\n`;
+        context += `7. ISSUE: Extract the actual problem (not emotion)\n`;
+        context += `   - "My bag is missing" → "Missing bag"\n`;
+        context += `   - "Package delayed" → "Package delayed"\n`;
+        context += `   - No problem mentioned → null\n`;
+        context += `   - Already set → "KEEP_UNCHANGED"\n\n`;
         
-        context += `8. CUSTOMER NAME: Extract if customer introduces themselves:\n`;
-        context += `   - "My name is John" → "John"\n`;
-        context += `   - "I'm Sarah" → "Sarah"\n`;
-        context += `   - "This is Michael calling" → "Michael"\n`;
-        context += `   - "Hi, I'm Alex" → "Alex"\n`;
-        context += `   - If customer doesn't mention their name → null\n`;
-        context += `   - Look for phrases like: "my name is", "I'm", "this is", "I am"\n\n`;
+        context += `8. CUSTOMER NAME: Extract if they say their name, otherwise null\n\n`;
+        context += `9. TAGS: Only if explicitly mentioned, otherwise []\n\n`;
         
-        context += `9. TAGS: ONLY add if customer EXPLICITLY says:\n`;
-        context += `   - "I'm a premium member" → "Premium"\n`;
-        context += `   - "I've called 3 times" → "Repeat Caller"\n`;
-        context += `   - Otherwise → empty array []\n\n`;
-        
-        context += `⚠️ CRITICAL EXAMPLES - FOLLOW THESE EXACTLY:\n\n`;
-        
-        context += `Customer: "This is bullshit, I'm extremely angry, worst service ever!"\n`;
-        context += `→ sentiment: 0.02, empathy: 1.0, stress: "High", quality: 12, predicted_csat: 0.5\n`;
-        context += `→ DISPLAY: Sentiment 0.2/10, Empathy 1.0/10, Quality 12/100, CSAT 0.5/10\n\n`;
-        
-        context += `Customer: "I'm very angry about this, this is unacceptable!"\n`;
-        context += `→ sentiment: 0.10, empathy: 1.5, stress: "High", quality: 18, predicted_csat: 1.5\n`;
-        context += `→ DISPLAY: Sentiment 1.0/10, Empathy 1.5/10, Quality 18/100, CSAT 1.5/10\n\n`;
-        
-        context += `Customer: "I'm frustrated, this is really annoying."\n`;
-        context += `→ sentiment: 0.30, empathy: 3.0, stress: "High", quality: 35, predicted_csat: 3.5\n`;
-        context += `→ DISPLAY: Sentiment 3.0/10, Empathy 3.0/10, Quality 35/100, CSAT 3.5/10\n\n`;
-        
-        context += `Customer: "I understand, okay, that's reasonable."\n`;
-        context += `→ sentiment: 0.55, stress: "Medium", quality: 65, predicted_csat: 5.5\n`;
-        context += `→ DISPLAY: Sentiment 5.5/10, Quality 65/100, CSAT 5.5/10\n\n`;
-        
-        context += `Customer: "That's good, thank you for the help."\n`;
-        context += `→ sentiment: 0.70, stress: "Low", quality: 78, predicted_csat: 7.0\n`;
-        context += `→ DISPLAY: Sentiment 7.0/10, Quality 78/100, CSAT 7.0/10\n\n`;
-        
-        context += `Customer: "Thank you so much, you've been really helpful!"\n`;
-        context += `→ sentiment: 0.85, stress: "Low", quality: 87, predicted_csat: 8.5\n`;
-        context += `→ DISPLAY: Sentiment 8.5/10, Quality 87/100, CSAT 8.5/10\n\n`;
-        
-        context += `Customer: "I'm ecstatic! This is the best service ever! You're incredible!"\n`;
-        context += `→ sentiment: 0.96, stress: "Low", quality: 96, predicted_csat: 9.6\n`;
-        context += `→ DISPLAY: Sentiment 9.6/10, Quality 96/100, CSAT 9.6/10\n\n`;
-        
-        context += `🎯 KEY RULES:\n`;
-        context += `- Very angry/furious = sentiment 0.0-0.15, empathy 1.0-1.5, quality 10-20\n`;
-        context += `- Neutral/calm/understand = sentiment 0.50-0.60, empathy 5.0-6.0, quality 60-70\n`;
-        context += `- Extremely happy/ecstatic = sentiment 0.90-1.0, empathy 9.0-10.0, quality 90-100\n`;
-        context += `- EMPATHY MINIMUM = 1.0 (never below 1.0)\n`;
-        context += `- QUALITY MINIMUM = 10 (never below 10)\n`;
-        context += `- MATCH emotion intensity to score precisely\n\n`;
+        context += `⚠️ EXAMPLES:\n`;
+        context += `"I'm angry" → empathy: 1.5, quality: 15, predicted_csat: 1.5\n`;
+        context += `"I'm happy" → empathy: 8.0, quality: 80, predicted_csat: 8.0\n`;
+        context += `"I'm in a great mood" → empathy: 9.0, quality: 90, predicted_csat: 9.0\n\n`;
         
         context += `Return ONLY valid JSON. NO explanations. NO text outside JSON.`;
         
