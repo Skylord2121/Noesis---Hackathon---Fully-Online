@@ -241,15 +241,47 @@ async function handleCustomerMessage(text, voiceMetrics = null) {
     });
     console.log('[AGENT] Conversation history updated, total messages:', conversationHistory.length);
     
-    // Animate spectrum bars when customer speaks
+    // Animate spectrum bars when customer speaks with voice metrics
     console.log('[AGENT] Animating customer spectrum...');
-    animateCustomerSpectrum();
+    if (voiceMetrics && voiceMetrics.volume > 0) {
+        animateCustomerSpectrumWithMetrics(voiceMetrics);
+    } else {
+        animateCustomerSpectrum();
+    }
     
     // Process with AI for coaching and metrics (async)
     processWithAI(text, voiceMetrics);
 }
 
-// Animate customer voice spectrum
+// Animate customer voice spectrum with real voice metrics
+function animateCustomerSpectrumWithMetrics(voiceMetrics) {
+    const bars = document.querySelectorAll('.spectrum-bar');
+    if (!bars || bars.length === 0) return;
+    
+    console.log('[AGENT] Animating spectrum with voice data:', voiceMetrics);
+    
+    // Calculate intensity based on volume and energy
+    const intensity = Math.min((voiceMetrics.volume + voiceMetrics.energy) / 100, 1.5);
+    const duration = voiceMetrics.speechRate > 3 ? 0.8 : 1.2; // Faster animation for faster speech
+    
+    // Animate bars based on actual voice metrics
+    bars.forEach((bar, index) => {
+        const scale = 0.2 + (intensity * (0.8 + Math.random() * 0.4));
+        bar.style.animation = `wave ${duration}s ease-in-out infinite`;
+        bar.style.animationDelay = `${index * 0.05}s`;
+        bar.style.setProperty('--scale-height', scale.toString());
+    });
+    
+    // Keep animating for 3 seconds then fade out
+    setTimeout(() => {
+        bars.forEach(bar => {
+            bar.style.animation = 'none';
+            bar.style.transform = 'scaleY(0.1)';
+        });
+    }, 3000);
+}
+
+// Animate customer voice spectrum (fallback without metrics)
 function animateCustomerSpectrum() {
     const bars = document.querySelectorAll('.spectrum-bar');
     if (!bars || bars.length === 0) return;
@@ -339,21 +371,63 @@ function initializeAgentRecognition() {
     };
     
     agentRecognition.onerror = (event) => {
-        console.error('Agent speech recognition error:', event.error);
-        if (event.error !== 'no-speech') {
+        console.error('[AGENT] Speech recognition error:', event.error);
+        
+        // Don't stop for these benign errors
+        if (event.error === 'no-speech') {
+            console.log('[AGENT] No speech detected, continuing...');
+            return;
+        }
+        
+        if (event.error === 'aborted') {
+            console.log('[AGENT] Recognition aborted, will auto-restart via onend');
+            return;
+        }
+        
+        // Only stop for serious errors
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            showToast('Microphone access denied', 'error');
             stopAgentSpeaking();
+        } else {
+            console.log('[AGENT] Non-critical error, continuing...');
         }
     };
     
     agentRecognition.onend = () => {
+        console.log('[AGENT] Speech recognition ended, isAgentSpeaking:', isAgentSpeaking);
         isAgentRecognitionActive = false;
+        
+        // Auto-restart if agent is still supposed to be speaking
         if (isAgentSpeaking) {
-            try {
-                agentRecognition.start();
-                isAgentRecognitionActive = true;
-            } catch (e) {
-                console.error('Error restarting agent recognition:', e);
-            }
+            // Add small delay to prevent rapid restart issues
+            setTimeout(() => {
+                if (isAgentSpeaking) { // Check again after delay
+                    try {
+                        console.log('[AGENT] Auto-restarting speech recognition...');
+                        agentRecognition.start();
+                        isAgentRecognitionActive = true;
+                        console.log('[AGENT] Speech recognition restarted successfully');
+                    } catch (e) {
+                        console.error('[AGENT] Error restarting agent recognition:', e);
+                        // If already started, that's fine
+                        if (e.message.includes('already started')) {
+                            isAgentRecognitionActive = true;
+                        } else {
+                            // Try again after longer delay
+                            setTimeout(() => {
+                                if (isAgentSpeaking) {
+                                    try {
+                                        agentRecognition.start();
+                                        isAgentRecognitionActive = true;
+                                    } catch (err) {
+                                        console.error('[AGENT] Failed to restart:', err);
+                                    }
+                                }
+                            }, 500);
+                        }
+                    }
+                }
+            }, 100);
         }
     };
     
@@ -375,9 +449,12 @@ function toggleAgentSpeaking() {
 
 function startAgentSpeaking() {
     try {
+        console.log('[AGENT] Starting agent speaking mode');
         if (!isAgentRecognitionActive) {
+            console.log('[AGENT] Starting speech recognition...');
             agentRecognition.start();
             isAgentRecognitionActive = true;
+            console.log('[AGENT] Speech recognition started');
         }
         isAgentSpeaking = true;
         
@@ -398,11 +475,17 @@ function startAgentSpeaking() {
 
 function stopAgentSpeaking() {
     try {
+        console.log('[AGENT] Stopping agent speaking mode');
+        
+        // Set flag first to prevent auto-restart
+        isAgentSpeaking = false;
+        
         if (isAgentRecognitionActive) {
+            console.log('[AGENT] Stopping speech recognition...');
             agentRecognition.stop();
             isAgentRecognitionActive = false;
+            console.log('[AGENT] Speech recognition stopped');
         }
-        isAgentSpeaking = false;
         
         // Update UI
         const btn = document.getElementById('agent-speak-btn');
@@ -411,8 +494,10 @@ function stopAgentSpeaking() {
             btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
             btn.innerHTML = '<i class="fas fa-microphone"></i> Speak';
         }
+        
+        console.log('[AGENT] Agent speaking stopped successfully');
     } catch (e) {
-        console.error('Error stopping agent speaking:', e);
+        console.error('[AGENT] Error stopping agent speaking:', e);
     }
 }
 
