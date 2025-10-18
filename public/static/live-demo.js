@@ -155,6 +155,14 @@ function updateCustomerInfo(info) {
     }
 }
 
+// Capitalize first letter of each sentence
+function capitalizeSentences(text) {
+    // Split by sentence endings (. ! ?) and capitalize first letter
+    return text.replace(/(^|[.!?]\s+)([a-z])/g, (match, separator, letter) => {
+        return separator + letter.toUpperCase();
+    });
+}
+
 function addTranscriptLine(speakerName, text, speakerType) {
     const isAgent = speakerType === 'agent';
     const avatar = isAgent ? 
@@ -162,6 +170,9 @@ function addTranscriptLine(speakerName, text, speakerType) {
         `<span class="text-xs font-semibold">CU</span>`;
     const bgColor = isAgent ? 'from-blue-500 to-cyan-500' : 'from-yellow-500 to-orange-500';
     const textColor = isAgent ? 'text-blue-400' : 'text-yellow-400';
+    
+    // Capitalize first letter of each sentence
+    const formattedText = capitalizeSentences(text);
     
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -178,7 +189,7 @@ function addTranscriptLine(speakerName, text, speakerType) {
                 <span class="text-xs text-gray-500">${timeStr}</span>
             </div>
             <p class="text-sm leading-relaxed">
-                ${text}
+                ${formattedText}
             </p>
         </div>
     `;
@@ -304,16 +315,23 @@ async function getAgentResponse(customerMessage) {
         
         showAgentThinking();
         
-        // Build context
-        let context = "You are a helpful AI customer service agent. Respond naturally to the customer.\n\n";
-        context += "CONVERSATION:\n";
+        // Build context with company information
+        let context = "You are a customer service agent for Amazon Customer Service.\n\n";
+        context += "COMPANY CONTEXT:\n";
+        context += "- Company: Amazon\n";
+        context += "- Department: Customer Service - Package Support\n";
+        context += "- Your role: Help customers with package delivery issues, tracking, returns, and refunds\n";
+        context += "- Common issues: Delayed packages, lost packages, damaged items, wrong items delivered\n";
+        context += "- You have access to: Order tracking, delivery status, refund processing, replacement orders\n\n";
+        
+        context += "CONVERSATION HISTORY:\n";
         
         const recentHistory = conversationHistory.slice(-6);
         recentHistory.forEach(msg => {
             context += `${msg.speaker === 'agent' ? 'Agent' : 'Customer'}: ${msg.text}\n`;
         });
         
-        context += `\nRespond to the customer in 1-2 sentences. Be helpful and empathetic.`;
+        context += `\nRespond as an Amazon customer service agent. Be helpful, empathetic, and professional. Keep responses to 1-2 sentences. Reference Amazon policies when relevant.`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
             method: 'POST',
@@ -641,25 +659,28 @@ function initSpeechRecognition() {
         if (result.isFinal) {
             console.log('Customer said:', transcript);
             
+            // Capitalize first letter for display
+            const capitalizedTranscript = transcript.charAt(0).toUpperCase() + transcript.slice(1);
+            
             // YOUR VOICE = CUSTOMER
-            addTranscriptLine('Customer', transcript, 'customer');
+            addTranscriptLine('Customer', capitalizedTranscript, 'customer');
             
             conversationHistory.push({
                 speaker: 'customer',
                 name: 'Customer',
-                text: transcript
+                text: capitalizedTranscript
             });
             
             customerHasSpoken = true;
             
             // Trigger AI analysis for metrics
             setTimeout(() => {
-                analyzeCustomerMessage(transcript, 'Customer', 'AI Agent');
+                analyzeCustomerMessage(capitalizedTranscript, 'Customer', 'Amazon Agent');
             }, 500);
             
             // AI agent responds
             setTimeout(() => {
-                getAgentResponse(transcript);
+                getAgentResponse(capitalizedTranscript);
             }, 1500);
         }
     };
