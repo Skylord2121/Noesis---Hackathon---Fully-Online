@@ -1491,27 +1491,29 @@ function showToast(message, type = 'success') {
 
 // Document Management Functions
 function openDocumentsFolder() {
-    showToast('Documents folder: /home/user/webapp/company-docs/', 'info');
+    // Try to open the Windows folder directly
+    const folderPath = 'C:\\Users\\Nimbus VFX\\Desktop\\Company Docs';
     
-    // Show instruction
-    const message = `
-        📁 Company Documents Folder:
-        /home/user/webapp/company-docs/
+    try {
+        // Attempt to open using file protocol (works in some browsers)
+        window.open(`file:///${folderPath}`, '_blank');
+        showToast('Opening documents folder...', 'info');
+    } catch (e) {
+        // Fallback: show path in toast and copy to clipboard
+        showToast('Documents folder: ' + folderPath, 'info');
         
-        Add your policy documents here (PDF, MD, TXT, DOC, DOCX)
-        then run: python3 scripts/document_indexer.py
-    `;
-    
-    console.log(message);
-    
-    // Optional: Open in new tab if user is viewing on their local machine
-    // This won't work in Cloudflare Pages but will work locally
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        try {
-            window.open('file:///home/user/webapp/company-docs/', '_blank');
-        } catch (e) {
-            console.log('Cannot open local file browser from web page');
+        // Try to copy path to clipboard
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(folderPath).then(() => {
+                console.log('Folder path copied to clipboard');
+            }).catch(() => {
+                console.log('Could not copy to clipboard');
+            });
         }
+        
+        // Show instruction in console
+        console.log(`📁 Company Documents Folder: ${folderPath}`);
+        console.log('To open: Press Win+R, paste the path, and press Enter');
     }
 }
 
@@ -1533,4 +1535,3 @@ window.testOllamaConnection = testOllamaConnection;
 window.toggleLiveSession = toggleLiveSession;
 window.togglePause = togglePause;
 window.openDocumentsFolder = openDocumentsFolder;
-window.viewSetupGuide = viewSetupGuide;
