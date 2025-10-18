@@ -327,12 +327,8 @@ function addTranscriptLine(item) {
     
     transcriptContainer.appendChild(transcriptLine);
     
-    // Force scroll to bottom with smooth animation
-    setTimeout(() => {
-        transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
-        // Also try scrollIntoView for the last element
-        transcriptLine.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 50);
+    // Only scroll the transcript container, not the whole page
+    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
 }
 
 function addTypingIndicator() {
