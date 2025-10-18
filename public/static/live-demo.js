@@ -615,11 +615,37 @@ function simulateCall() {
     }
 }
 
+// Theme toggle function
+function toggleTheme() {
+    const body = document.body;
+    const themeIcon = document.getElementById('theme-icon');
+    
+    body.classList.toggle('light-mode');
+    
+    if (body.classList.contains('light-mode')) {
+        themeIcon.classList.remove('fa-moon');
+        themeIcon.classList.add('fa-sun');
+        localStorage.setItem('theme', 'light');
+    } else {
+        themeIcon.classList.remove('fa-sun');
+        themeIcon.classList.add('fa-moon');
+        localStorage.setItem('theme', 'dark');
+    }
+}
+
 // Start simulation on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize metrics
     qualityScore.textContent = '--';
     predictedCsat.textContent = '--';
+    
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        document.getElementById('theme-icon').classList.remove('fa-moon');
+        document.getElementById('theme-icon').classList.add('fa-sun');
+    }
     
     // Start after a brief delay
     setTimeout(() => {
@@ -627,5 +653,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-// Make usePhraseClicked available globally
+// Make functions available globally
 window.usePhraseClicked = usePhraseClicked;
+window.toggleTheme = toggleTheme;
