@@ -102,8 +102,13 @@ LATEST CUSTOMER: "${text}"
 TASK: Provide SHORT, actionable coaching using COMPANY KNOWLEDGE and VOICE ANALYSIS above. Keep suggestions brief and punchy.
 
 CRITICAL RULES:
-1. CUSTOMER NAME: Extract if mentioned ("My name is Sarah", "I'm John", "This is Mike")
-2. ISSUE: Be specific (Password Reset, Billing Dispute, Refund, Shipping Delay, Account Locked)
+1. CUSTOMER NAME: MUST extract name from phrases like:
+   - "My name is Sarah" → "Sarah"
+   - "I'm John Smith" → "John Smith"  
+   - "This is Mike" → "Mike"
+   - "Sarah speaking" → "Sarah"
+   If no name mentioned, return null. If name found, MUST include in response.
+2. ISSUE: Be specific (Password Reset, Billing Dispute, Refund, Shipping Delay, Account Locked, General Inquiry)
 3. COACHING: 
    - Use COMPANY KNOWLEDGE BASE to reference specific policies/procedures
    - Keep it SHORT unless complex protocol needed (1-2 sentences max)
@@ -116,64 +121,161 @@ GOOD SHORT COACHING EXAMPLES:
 "Follow password reset procedure: Verify email and last 4 digits of phone."
 "Use greeting script for upset customers. Acknowledge frustration first."
 
-Respond ONLY with valid JSON:
+Respond ONLY with valid JSON (no markdown, no explanation):
 {
-  "sentiment": 0.0-1.0,
-  "empathy": 0.0-10.0,
-  "quality": 0.0-10.0,
-  "stress": "Low"|"Medium"|"High",
-  "clarity": "Poor"|"Fair"|"Good"|"Excellent",
-  "predictedCSAT": 0.0-10.0,
-  "customerName": "FirstName LastName"|null,
-  "issue": "Specific Issue",
+  "sentiment": 0.5,
+  "empathy": 7.0,
+  "quality": 7.0,
+  "stress": "Medium",
+  "clarity": "Good",
+  "predictedCSAT": 7.0,
+  "customerName": "John Smith",
+  "issue": "General Inquiry",
   "coaching": [
     {
-      "type": "action"|"empathy"|"knowledge",
-      "title": "Brief title (3-5 words)",
-      "message": "Short suggestion (1-2 sentences max, unless technical protocol)"
+      "type": "empathy",
+      "title": "Greet Warmly",
+      "message": "Welcome customer and thank them for reaching out"
     }
   ]
 }`
 
-    // Use Cloudflare AI
-    const ai = c.env.AI
-    
-    const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
-      messages: [
-        { role: 'system', content: 'You are a helpful assistant that responds only in valid JSON.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.2,
-      max_tokens: 500
-    })
-
-    // Parse AI response
+    // Smart AI analysis (fallback for local development)
     let analysis
+    
     try {
-      const responseText = response.response || JSON.stringify(response)
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      // Try Cloudflare AI if available
+      const ai = c.env?.AI
       
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0])
+      if (ai) {
+        const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant that responds only in valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2,
+          max_tokens: 500
+        })
+
+        const responseText = response.response || JSON.stringify(response)
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        
+        if (jsonMatch) {
+          analysis = JSON.parse(jsonMatch[0])
+        } else {
+          throw new Error('No JSON found in response')
+        }
       } else {
-        throw new Error('No JSON found in response')
+        // Fallback: Smart rule-based analysis for local development
+        throw new Error('AI not available, using fallback')
       }
-    } catch (parseError) {
-      // Fallback response if parsing fails
-      analysis = {
-        sentiment: 0.5,
-        empathy: 7.0,
-        quality: 7.0,
-        stress: 'Medium',
-        clarity: 'Good',
-        predictedCSAT: 7.0,
-        customerName: null,
-        issue: 'General Inquiry',
-        coaching: [{
+    } catch (error) {
+      console.log('Using smart fallback AI:', error.message)
+      
+      // Extract customer name using regex
+      const nameMatch = text.match(/(?:my name is|i'm|this is|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ||
+                       text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+speaking/i)
+      const customerName = nameMatch ? nameMatch[1] : null
+      
+      // Detect issue type from keywords
+      let issue = 'General Inquiry'
+      const lowerText = text.toLowerCase()
+      if (lowerText.includes('refund') || lowerText.includes('money back')) issue = 'Refund Request'
+      else if (lowerText.includes('password') || lowerText.includes('login') || lowerText.includes('account')) issue = 'Account Access'
+      else if (lowerText.includes('shipping') || lowerText.includes('delivery') || lowerText.includes('package')) issue = 'Shipping Issue'
+      else if (lowerText.includes('billing') || lowerText.includes('charge') || lowerText.includes('payment')) issue = 'Billing Inquiry'
+      else if (lowerText.includes('product') || lowerText.includes('item') || lowerText.includes('order')) issue = 'Order Inquiry'
+      
+      // Analyze sentiment from voice metrics and keywords
+      let sentiment = 0.5
+      let stress = 'Medium'
+      let empathy = 7.0
+      let quality = 7.0
+      let predictedCSAT = 7.0
+      
+      if (voiceMetrics) {
+        // High volume + high pitch + fast speech = stressed/upset
+        if (voiceMetrics.volume > 60 && voiceMetrics.pitch > 230) {
+          sentiment = 0.3
+          stress = 'High'
+          empathy = 4.0
+          quality = 5.0
+          predictedCSAT = 4.0
+        } else if (voiceMetrics.volume < 40 && voiceMetrics.energy < 40) {
+          // Low volume + low energy = calm or sad
+          sentiment = 0.6
+          stress = 'Low'
+          empathy = 8.0
+          quality = 8.0
+          predictedCSAT = 8.0
+        }
+      }
+      
+      // Adjust based on keywords
+      const negativeWords = ['angry', 'upset', 'frustrated', 'disappointed', 'terrible', 'worst', 'horrible']
+      const positiveWords = ['thank', 'appreciate', 'great', 'excellent', 'happy', 'satisfied']
+      
+      if (negativeWords.some(word => lowerText.includes(word))) {
+        sentiment = Math.max(0.2, sentiment - 0.2)
+        stress = 'High'
+        empathy = Math.max(3.0, empathy - 2)
+        predictedCSAT = Math.max(3.0, predictedCSAT - 2)
+      } else if (positiveWords.some(word => lowerText.includes(word))) {
+        sentiment = Math.min(0.9, sentiment + 0.2)
+        stress = 'Low'
+        empathy = Math.min(9.0, empathy + 1)
+        predictedCSAT = Math.min(9.0, predictedCSAT + 1)
+      }
+      
+      // Generate contextual coaching
+      const coaching = []
+      
+      // Empathy coaching based on stress
+      if (stress === 'High') {
+        coaching.push({
           type: 'empathy',
-          title: 'Listen Actively',
-          message: 'Focus on understanding the customer\'s concern fully.'
-        }]
+          title: 'De-escalate First',
+          message: 'Customer is stressed. Start with: "I understand how frustrating this must be. Let me help you right away."'
+        })
+      } else {
+        coaching.push({
+          type: 'empathy',
+          title: 'Warm Greeting',
+          message: 'Great tone! Maintain friendly rapport while resolving their concern.'
+        })
+      }
+      
+      // Issue-specific coaching
+      if (issue === 'Refund Request') {
+        coaching.push({
+          type: 'action',
+          title: 'Check Refund Policy',
+          message: 'Per company policy: Full refund within 30 days. Ask for order date and verify eligibility.'
+        })
+      } else if (issue === 'Account Access') {
+        coaching.push({
+          type: 'action',
+          title: 'Password Reset Steps',
+          message: 'Follow protocol: Verify email address, ask for last 4 digits of phone, then send reset link.'
+        })
+      } else if (issue === 'Shipping Issue') {
+        coaching.push({
+          type: 'knowledge',
+          title: 'Check Tracking',
+          message: 'Look up order, check tracking status. Standard shipping: 5-7 days. Offer expedited if delayed.'
+        })
+      }
+      
+      analysis = {
+        sentiment,
+        empathy,
+        quality,
+        stress,
+        clarity: voiceMetrics && voiceMetrics.energy > 50 ? 'Good' : 'Fair',
+        predictedCSAT,
+        customerName,
+        issue,
+        coaching
       }
     }
 
