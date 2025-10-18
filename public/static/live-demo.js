@@ -591,9 +591,29 @@ function simulateCall() {
             updateClarity(item.clarity);
             updateMetrics(item.empathy);
             
-            // Add coaching if present
-            if (item.coaching) {
+            // Add transcript to history for Ollama
+            conversationHistory.push({
+                speaker: item.speaker,
+                name: item.name,
+                text: item.text,
+                time: currentTime
+            });
+            
+            // Add coaching if present (or get from Ollama)
+            if (item.coaching && !ollamaEnabled) {
                 setTimeout(() => addCoachingCard(item.coaching), 800);
+            } else if (ollamaEnabled && item.speaker === 'customer') {
+                // Get AI coaching from Ollama for customer messages
+                setTimeout(async () => {
+                    const context = conversationHistory.slice(-5).map(h => 
+                        `${h.name}: ${h.text}`
+                    ).join('\n');
+                    
+                    const aiCoaching = await getOllamaCoaching(context);
+                    if (aiCoaching) {
+                        addCoachingCard(aiCoaching);
+                    }
+                }, 1000);
             }
             
             // Show typing for next agent response
@@ -647,12 +667,165 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('theme-icon').classList.add('fa-sun');
     }
     
+    // Load Ollama settings
+    ollamaEnabled = localStorage.getItem('ollama-enabled') === 'true';
+    ollamaUrl = localStorage.getItem('ollama-url') || 'http://localhost:11434';
+    ollamaModel = localStorage.getItem('ollama-model') || 'qwen2.5:latest';
+    
     // Start after a brief delay
     setTimeout(() => {
         simulateCall();
     }, 1000);
 });
 
+// Ollama Integration
+let ollamaEnabled = false;
+let ollamaUrl = 'http://localhost:11434';
+let ollamaModel = 'qwen2.5:latest';
+let conversationHistory = [];
+
+// Settings Modal Functions
+function openSettings() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+    // Load saved settings
+    const enabled = localStorage.getItem('ollama-enabled') === 'true';
+    const url = localStorage.getItem('ollama-url') || 'http://localhost:11434';
+    const model = localStorage.getItem('ollama-model') || 'qwen2.5:latest';
+    
+    document.getElementById('ollama-enabled').checked = enabled;
+    document.getElementById('ollama-url').value = url;
+    document.getElementById('ollama-model').value = model;
+}
+
+function closeSettings() {
+    document.getElementById('settings-modal').classList.add('hidden');
+}
+
+function toggleOllama() {
+    ollamaEnabled = document.getElementById('ollama-enabled').checked;
+}
+
+function saveSettings() {
+    ollamaEnabled = document.getElementById('ollama-enabled').checked;
+    ollamaUrl = document.getElementById('ollama-url').value;
+    ollamaModel = document.getElementById('ollama-model').value;
+    
+    localStorage.setItem('ollama-enabled', ollamaEnabled);
+    localStorage.setItem('ollama-url', ollamaUrl);
+    localStorage.setItem('ollama-model', ollamaModel);
+    
+    closeSettings();
+    
+    // Show success message
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(34, 197, 94, 0.95);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+    `;
+    toast.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Settings saved!';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
+async function testOllamaConnection() {
+    const statusDiv = document.getElementById('connection-status');
+    const url = document.getElementById('ollama-url').value;
+    const model = document.getElementById('ollama-model').value;
+    
+    statusDiv.classList.remove('hidden');
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Testing connection...';
+    statusDiv.className = 'text-sm text-center text-yellow-400';
+    
+    try {
+        const response = await fetch(`${url}/api/tags`);
+        if (!response.ok) throw new Error('Connection failed');
+        
+        const data = await response.json();
+        const hasModel = data.models?.some(m => m.name === model);
+        
+        if (hasModel) {
+            statusDiv.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Connected! Model found.';
+            statusDiv.className = 'text-sm text-center text-green-400';
+        } else {
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>Connected, but model "${model}" not found. Available models: ${data.models?.map(m => m.name).join(', ') || 'none'}`;
+            statusDiv.className = 'text-sm text-center text-orange-400';
+        }
+    } catch (error) {
+        statusDiv.innerHTML = '<i class="fas fa-times-circle mr-2"></i>Connection failed. Make sure Ollama is running.';
+        statusDiv.className = 'text-sm text-center text-red-400';
+    }
+}
+
+async function getOllamaCoaching(context) {
+    if (!ollamaEnabled) return null;
+    
+    try {
+        const prompt = `You are an AI coaching assistant for call center agents. Analyze this conversation and provide ONE brief coaching suggestion.
+
+Context:
+${context}
+
+Provide a JSON response with:
+{
+  "type": "empathy|de-escalation|action|transparency|resolution",
+  "title": "Brief title (max 20 chars)",
+  "message": "Coaching message (max 100 chars)",
+  "phrase": "Suggested phrase to use (max 80 chars, optional)"
+}
+
+Keep it short and actionable.`;
+
+        const response = await fetch(`${ollamaUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: ollamaModel,
+                prompt: prompt,
+                stream: false,
+                options: {
+                    temperature: 0.7,
+                    num_predict: 200
+                }
+            })
+        });
+        
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        const text = data.response;
+        
+        // Try to parse JSON from response
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const coaching = JSON.parse(jsonMatch[0]);
+            return {
+                type: coaching.type || 'empathy',
+                title: coaching.title || 'AI Suggestion',
+                message: coaching.message || text.substring(0, 100),
+                phrase: coaching.phrase || null,
+                priority: 2
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Ollama error:', error);
+        return null;
+    }
+}
+
 // Make functions available globally
 window.usePhraseClicked = usePhraseClicked;
 window.toggleTheme = toggleTheme;
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.toggleOllama = toggleOllama;
+window.saveSettings = saveSettings;
+window.testOllamaConnection = testOllamaConnection;
