@@ -11,6 +11,7 @@ let customerHasSpoken = false; // Track if customer has spoken yet
 let recognition = null; // Speech recognition instance
 let isListening = false; // Track if actively listening
 let isPaused = false; // Track if session is paused
+let isAgentThinking = false; // Track if agent is generating response (prevents mic restart)
 let ollamaConnected = false; // Track if Ollama is connected and ready
 let audioContext = null; // Web Audio API context
 let analyser = null; // Audio analyser for spectrum
@@ -314,11 +315,14 @@ async function getAgentResponse(customerMessage) {
         const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
         const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
         
+        // SET AGENT THINKING FLAG - prevents mic auto-restart
+        isAgentThinking = true;
+        
         // PAUSE MICROPHONE while AI is responding to prevent transcript disruption
         if (recognition && isListening && !isPaused) {
             try {
                 recognition.stop();
-                console.log('Microphone paused for AI response');
+                console.log('🎤 Microphone STOPPED - Agent thinking');
             } catch (e) {
                 console.log('Recognition already stopped');
             }
@@ -374,12 +378,15 @@ async function getAgentResponse(customerMessage) {
             text: agentText
         });
         
+        // CLEAR AGENT THINKING FLAG
+        isAgentThinking = false;
+        
         // RESUME MICROPHONE after AI finishes responding
         if (recognition && isListening && !isPaused) {
             setTimeout(() => {
                 try {
                     recognition.start();
-                    console.log('Microphone resumed after AI response');
+                    console.log('🎤 Microphone RESUMED - Agent finished');
                 } catch (e) {
                     console.log('Recognition already running');
                 }
@@ -390,12 +397,15 @@ async function getAgentResponse(customerMessage) {
         console.error('Agent response failed:', error);
         removeAgentThinking();
         
+        // CLEAR AGENT THINKING FLAG even on error
+        isAgentThinking = false;
+        
         // Make sure to resume microphone even if agent response fails
         if (recognition && isListening && !isPaused) {
             setTimeout(() => {
                 try {
                     recognition.start();
-                    console.log('Microphone resumed after error');
+                    console.log('🎤 Microphone RESUMED - After error');
                 } catch (e) {
                     console.log('Recognition already running');
                 }
@@ -447,7 +457,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "priority": 1-3\n`;
         context += `  },\n`;
         context += `  "metrics": {\n`;
-        context += `    "empathy": 4.0-9.5,\n`;
+        context += `    "empathy": 0.0-10.0,\n`;
         context += `    "sentiment": 0.0-1.0,\n`;
         context += `    "stress": "High|Medium|Low",\n`;
         context += `    "clarity": "Poor|Fair|Good",\n`;
@@ -484,11 +494,22 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   - Medium: Customer concerned, somewhat worried, needs resolution\n`;
         context += `   - Low: Customer calm, patient, understanding\n\n`;
         
-        context += `3. EMPATHY (Agent's empathy - how empathetic the AGENT is being):\n`;
-        context += `   - 4.0-5.5: Agent robotic, cold, dismissive, no acknowledgment of feelings\n`;
-        context += `   - 5.5-7.0: Agent neutral, professional but not warm\n`;
-        context += `   - 7.0-8.5: Agent empathetic, acknowledges customer feelings\n`;
-        context += `   - 8.5-9.5: Agent highly empathetic, validates emotions, offers solutions\n\n`;
+        context += `3. EMPATHY (Customer's emotional satisfaction 0.0-10.0 scale - how satisfied/happy the CUSTOMER feels):\n`;
+        context += `   🔴 VERY UNHAPPY (0.0-2.0):\n`;
+        context += `   - Customer extremely angry, furious, worst experience → 0.0-1.0\n`;
+        context += `   - Customer very angry, unacceptable service → 1.0-2.0\n`;
+        context += `   🟠 UNHAPPY (2.0-4.0):\n`;
+        context += `   - Customer frustrated, annoyed, not happy → 2.0-3.0\n`;
+        context += `   - Customer somewhat dissatisfied, issues not resolved → 3.0-4.0\n`;
+        context += `   🟡 NEUTRAL (4.0-6.0):\n`;
+        context += `   - Customer slightly negative but calming down → 4.0-5.0\n`;
+        context += `   - Customer neutral, calm, understanding, reasonable → 5.0-6.0\n`;
+        context += `   🟢 SATISFIED (6.0-8.0):\n`;
+        context += `   - Customer satisfied, problem being addressed → 6.0-7.0\n`;
+        context += `   - Customer happy, thankful, good experience → 7.0-8.0\n`;
+        context += `   🟢 VERY HAPPY (8.0-10.0):\n`;
+        context += `   - Customer very happy, excellent service, grateful → 8.0-9.0\n`;
+        context += `   - Customer ecstatic, best service ever, extremely satisfied → 9.0-10.0\n\n`;
         
         context += `4. QUALITY (Overall conversation quality 0-100, direct mapping):\n`;
         context += `   🔴 VERY POOR (0-20):\n`;
@@ -857,8 +878,14 @@ function initSpeechRecognition() {
     };
     
     recognition.onend = () => {
-        if (isListening) {
-            recognition.start();
+        // Only restart if listening AND not paused AND not agent thinking
+        if (isListening && !isPaused && !isAgentThinking) {
+            try {
+                recognition.start();
+                console.log('Recognition auto-restarted');
+            } catch (e) {
+                console.log('Could not restart recognition:', e.message);
+            }
         }
     };
     
@@ -890,11 +917,11 @@ async function initAudioSpectrum() {
 }
 
 function animateSpectrum() {
-    if (!analyser || !isListening) {
-        // Stop animation if not listening - bars go to ZERO
+    // Stop animation if not listening, paused, or agent thinking
+    if (!analyser || !isListening || isPaused || isAgentThinking) {
         const bars = document.querySelectorAll('.spectrum-bar');
         bars.forEach(bar => {
-            bar.style.height = '0%'; // Reset to zero when not speaking
+            bar.style.height = '0%'; // Reset to zero when not active
         });
         return;
     }
@@ -1017,9 +1044,14 @@ function togglePause() {
     const modeIndicator = document.getElementById('mode-indicator');
     
     if (isPaused) {
-        // Pause the session
+        // Pause the session - STOP MICROPHONE COMPLETELY
         if (recognition) {
-            recognition.stop();
+            try {
+                recognition.stop();
+                console.log('🎤 Microphone STOPPED - Session paused by user');
+            } catch (e) {
+                console.log('Recognition already stopped');
+            }
         }
         
         // Update pause button to resume
@@ -1036,10 +1068,11 @@ function togglePause() {
         
         showToast('Session paused', 'success');
     } else {
-        // Resume the session
-        if (recognition && isListening) {
+        // Resume the session - RESTART MICROPHONE
+        if (recognition && isListening && !isAgentThinking) {
             try {
                 recognition.start();
+                console.log('🎤 Microphone RESUMED - User clicked resume');
             } catch (e) {
                 console.log('Recognition already started');
             }
