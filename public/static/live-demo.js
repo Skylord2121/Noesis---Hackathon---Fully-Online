@@ -795,16 +795,20 @@ async function getOllamaCoaching(context) {
     console.log('Context:', context);
     
     try {
-        const prompt = `Analyze this call center conversation and provide ONE coaching tip in JSON format.
+        const prompt = `You are coaching a call center agent. Based on this conversation, provide ONE specific coaching tip.
 
 Conversation:
 ${context}
 
-Return ONLY this JSON (no extra text):
-{"type":"empathy","title":"Short title","message":"Brief coaching tip","phrase":"Suggested agent response"}
+Respond with a JSON object containing:
+- type: one of [empathy, de-escalation, action, transparency, resolution]
+- title: short coaching category (max 18 chars)
+- message: specific actionable advice (max 90 chars)
+- phrase: exact words the agent should say (max 75 chars)
 
-Type must be one of: empathy, de-escalation, action, transparency, resolution
-JSON:`;
+Example: {"type":"empathy","title":"Show Understanding","message":"Customer is upset. Acknowledge their feelings first before solving.","phrase":"I understand this is really frustrating for you."}
+
+Your coaching JSON:`;
 
         console.log('Calling Ollama API:', ollamaUrl, 'Model:', ollamaModel);
 
@@ -845,30 +849,45 @@ JSON:`;
         console.log('Response text:', text);
         
         // Try to parse JSON from response
+        let coaching = null;
+        
+        // Method 1: Try to find JSON with regex
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            console.log('Found JSON in response:', jsonMatch[0]);
-            const coaching = JSON.parse(jsonMatch[0]);
-            const result = {
-                type: coaching.type || 'empathy',
-                title: coaching.title || 'AI Suggestion',
-                message: coaching.message || text.substring(0, 100),
-                phrase: coaching.phrase || null,
-                priority: 2
-            };
-            console.log('✅ Parsed coaching:', result);
-            return result;
-        } else {
-            console.warn('No JSON found in response, using raw text');
-            // Fallback: use raw text
-            return {
+            try {
+                console.log('Found JSON in response:', jsonMatch[0]);
+                coaching = JSON.parse(jsonMatch[0]);
+            } catch (e) {
+                console.warn('JSON parsing failed:', e);
+            }
+        }
+        
+        // Method 2: If no valid JSON, try to extract meaningful text
+        if (!coaching || !coaching.message) {
+            console.warn('No valid JSON found, extracting text coaching');
+            
+            // Extract the most meaningful part of the response
+            const lines = text.split('\n').filter(l => l.trim().length > 10);
+            const mainText = lines[0] || text;
+            
+            coaching = {
                 type: 'empathy',
-                title: 'AI Suggestion',
-                message: text.substring(0, 100),
-                phrase: null,
-                priority: 2
+                title: 'AI Coaching',
+                message: mainText.substring(0, 100).trim(),
+                phrase: lines[1] ? lines[1].substring(0, 80).trim() : null
             };
         }
+        
+        const result = {
+            type: coaching.type || 'empathy',
+            title: coaching.title || 'AI Coaching',
+            message: coaching.message || 'Review the conversation context',
+            phrase: coaching.phrase || null,
+            priority: 2
+        };
+        
+        console.log('✅ Final coaching result:', result);
+        return result;
     } catch (error) {
         if (error.name === 'AbortError') {
             console.error('❌ Ollama timeout: Request took too long (>3 minutes)');
