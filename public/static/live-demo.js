@@ -236,6 +236,7 @@ const conversation = [
 let currentTime = 0;
 let currentIndex = 0;
 let callActive = true;
+let conversationHistory = []; // Track full conversation for AI context
 
 // DOM elements
 const transcriptMessages = document.getElementById('transcript-messages');
@@ -447,7 +448,7 @@ function removeTypingIndicator() {
     }
 }
 
-function addCoachingCard(coaching) {
+function addCoachingCard(coaching, isAI = false) {
     // Remove old cards if priority is 1
     if (coaching.priority === 1) {
         const oldCards = coachingContainer.querySelectorAll('.coaching-card');
@@ -504,6 +505,7 @@ function addCoachingCard(coaching) {
     }
     
     const card = document.createElement('div');
+    const aiLabel = isAI ? '<span class="ml-auto text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full border border-cyan-500/30">AI</span>' : '';
     card.className = `coaching-card p-3 rounded-lg bg-gradient-to-br from-${coaching.type === 'de-escalation' ? 'red' : 'blue'}-500/10 to-transparent border ${borderColor}`;
     
     let phraseHTML = '';
@@ -526,6 +528,7 @@ function addCoachingCard(coaching) {
                 </div>
                 <span class="text-xs font-semibold text-gray-200">${title}</span>
             </div>
+            ${aiLabel}
         </div>
         <p class="text-xs text-gray-400 mb-2 leading-relaxed">
             ${coaching.message}
@@ -536,6 +539,60 @@ function addCoachingCard(coaching) {
     setTimeout(() => {
         coachingContainer.insertBefore(card, coachingContainer.firstChild);
     }, coaching.priority === 1 ? 300 : 0);
+}
+
+// NEW: Call Ollama API for AI coaching analysis
+async function analyzeCustomerMessage(customerMessage, customerName, agentName) {
+    try {
+        // Get saved Ollama settings
+        const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
+        const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
+        
+        // Add loading indicator
+        const loadingCard = document.createElement('div');
+        loadingCard.id = 'ai-loading';
+        loadingCard.className = 'p-3 rounded-lg bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/30';
+        loadingCard.innerHTML = `
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-brain text-white text-xs animate-pulse"></i>
+                </div>
+                <span class="text-xs text-gray-300">AI analyzing...</span>
+            </div>
+        `;
+        coachingContainer.insertBefore(loadingCard, coachingContainer.firstChild);
+        
+        const response = await fetch('/api/analyze-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customerMessage,
+                conversationHistory,
+                agentName,
+                customerName,
+                ollamaUrl,
+                model
+            })
+        });
+        
+        const data = await response.json();
+        
+        // Remove loading indicator
+        const loading = document.getElementById('ai-loading');
+        if (loading) loading.remove();
+        
+        if (data.success && data.coaching) {
+            // Add AI coaching card with special indicator
+            addCoachingCard(data.coaching, true);
+        } else {
+            console.error('AI coaching failed:', data.error);
+        }
+    } catch (error) {
+        console.error('Failed to get AI coaching:', error);
+        // Remove loading indicator on error
+        const loading = document.getElementById('ai-loading');
+        if (loading) loading.remove();
+    }
 }
 
 function usePhraseClicked() {
@@ -579,6 +636,13 @@ function simulateCall() {
             // Add transcript line
             addTranscriptLine(item);
             
+            // Add to conversation history for AI context
+            conversationHistory.push({
+                speaker: item.speaker,
+                name: item.name,
+                text: item.text
+            });
+            
             // Update customer info if present
             if (item.customerInfo) {
                 updateCustomerInfo(item.customerInfo);
@@ -591,46 +655,16 @@ function simulateCall() {
             updateClarity(item.clarity);
             updateMetrics(item.empathy);
             
-            // Add transcript to history for Ollama
-            conversationHistory.push({
-                speaker: item.speaker,
-                name: item.name,
-                text: item.text,
-                time: currentTime
-            });
+            // Add coaching if present (original mock coaching)
+            if (item.coaching) {
+                setTimeout(() => addCoachingCard(item.coaching, false), 800);
+            }
             
-            // Add coaching if present (or get from Ollama)
-            if (item.coaching && !ollamaEnabled) {
-                setTimeout(() => addCoachingCard(item.coaching), 800);
-            } else if (ollamaEnabled && item.speaker === 'customer') {
-                // Get AI coaching from Ollama for customer messages
-                setTimeout(async () => {
-                    // Show "AI is thinking" indicator
-                    const thinkingCard = document.createElement('div');
-                    thinkingCard.className = 'coaching-card glass-panel p-4 rounded-lg border border-blue-500/30 mb-3';
-                    thinkingCard.innerHTML = `
-                        <div class="flex items-center gap-2 text-blue-400">
-                            <i class="fas fa-brain fa-pulse"></i>
-                            <span class="text-sm">AI is analyzing...</span>
-                        </div>
-                    `;
-                    coachingContainer.appendChild(thinkingCard);
-                    
-                    const context = conversationHistory.slice(-5).map(h => 
-                        `${h.name}: ${h.text}`
-                    ).join('\n');
-                    
-                    const aiCoaching = await getOllamaCoaching(context);
-                    
-                    // Remove thinking indicator
-                    thinkingCard.remove();
-                    
-                    if (aiCoaching) {
-                        addCoachingCard(aiCoaching);
-                    } else {
-                        console.warn('No coaching returned from Ollama');
-                    }
-                }, 1000);
+            // NEW: If customer (Laura) spoke, call AI for real-time analysis
+            if (item.speaker === 'customer') {
+                setTimeout(() => {
+                    analyzeCustomerMessage(item.text, item.name, 'Maya');
+                }, 1500); // Delay slightly so AI response comes after mock coaching
             }
             
             // Show typing for next agent response
@@ -684,218 +718,152 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('theme-icon').classList.add('fa-sun');
     }
     
-    // Load Ollama settings
-    ollamaEnabled = localStorage.getItem('ollama-enabled') === 'true';
-    ollamaUrl = localStorage.getItem('ollama-url') || 'http://localhost:11434';
-    ollamaModel = localStorage.getItem('ollama-model') || 'qwen2.5:latest';
-    
     // Start after a brief delay
     setTimeout(() => {
         simulateCall();
     }, 1000);
 });
 
-// Ollama Integration
-let ollamaEnabled = false;
-let ollamaUrl = 'http://localhost:11434';
-let ollamaModel = 'qwen2.5:latest';
-let conversationHistory = [];
-
 // Settings Modal Functions
 function openSettings() {
-    document.getElementById('settings-modal').classList.remove('hidden');
-    // Load saved settings
-    const enabled = localStorage.getItem('ollama-enabled') === 'true';
-    const url = localStorage.getItem('ollama-url') || 'http://localhost:11434';
-    const model = localStorage.getItem('ollama-model') || 'qwen2.5:latest';
+    const modal = document.getElementById('settings-modal');
+    modal.classList.remove('hidden');
     
-    document.getElementById('ollama-enabled').checked = enabled;
-    document.getElementById('ollama-url').value = url;
-    document.getElementById('ollama-model').value = model;
+    // Load saved settings
+    const savedHost = localStorage.getItem('ollama-host') || 'http://localhost:11434';
+    const savedModel = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
+    
+    document.getElementById('ollama-host').value = savedHost;
+    document.getElementById('ollama-model').value = savedModel;
 }
 
 function closeSettings() {
     document.getElementById('settings-modal').classList.add('hidden');
 }
 
-function toggleOllama() {
-    ollamaEnabled = document.getElementById('ollama-enabled').checked;
+function saveSettings() {
+    const host = document.getElementById('ollama-host').value.trim();
+    const model = document.getElementById('ollama-model').value.trim();
+    
+    if (!host) {
+        showToast('Please enter an Ollama host URL', 'error');
+        return;
+    }
+    
+    if (!model) {
+        showToast('Please enter a model name', 'error');
+        return;
+    }
+    
+    localStorage.setItem('ollama-host', host);
+    localStorage.setItem('ollama-model', model);
+    
+    showToast('Settings saved successfully!', 'success');
+    
+    setTimeout(() => {
+        closeSettings();
+    }, 1000);
 }
 
-function saveSettings() {
-    ollamaEnabled = document.getElementById('ollama-enabled').checked;
-    ollamaUrl = document.getElementById('ollama-url').value;
-    ollamaModel = document.getElementById('ollama-model').value;
+async function testOllamaConnection() {
+    const host = document.getElementById('ollama-host').value.trim();
+    const model = document.getElementById('ollama-model').value.trim();
+    const statusDiv = document.getElementById('connection-status');
+    const testBtn = document.getElementById('test-connection-btn');
     
-    localStorage.setItem('ollama-enabled', ollamaEnabled);
-    localStorage.setItem('ollama-url', ollamaUrl);
-    localStorage.setItem('ollama-model', ollamaModel);
+    if (!host) {
+        showToast('Please enter an Ollama host URL', 'error');
+        return;
+    }
     
-    closeSettings();
+    // Show loading state
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    statusDiv.classList.remove('hidden');
+    statusDiv.className = 'p-3 rounded-lg text-sm bg-blue-500/10 border border-blue-500/30';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i><span class="text-blue-400">Testing connection...</span>';
     
-    // Show success message
+    try {
+        const response = await fetch('/api/test-ollama', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ollamaUrl: host,
+                model: model
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.className = 'p-3 rounded-lg text-sm bg-green-500/10 border border-green-500/30';
+            statusDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-check-circle text-green-400 mt-0.5"></i>
+                    <div class="flex-1">
+                        <p class="text-green-400 font-semibold">${data.message}</p>
+                        <p class="text-gray-400 text-xs mt-1">Model: ${data.details.model}</p>
+                        ${data.details.availableModels ? `<p class="text-gray-400 text-xs mt-1">Available: ${data.details.availableModels.slice(0, 3).join(', ')}...</p>` : ''}
+                    </div>
+                </div>
+            `;
+            showToast('Connection successful!', 'success');
+        } else {
+            statusDiv.className = 'p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30';
+            statusDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-exclamation-circle text-red-400 mt-0.5"></i>
+                    <div class="flex-1">
+                        <p class="text-red-400 font-semibold">Connection Failed</p>
+                        <p class="text-gray-400 text-xs mt-1">${data.message || data.error}</p>
+                        ${data.availableModels ? `<p class="text-gray-400 text-xs mt-1">Try: ${data.availableModels.slice(0, 3).join(', ')}</p>` : ''}
+                    </div>
+                </div>
+            `;
+            showToast('Connection failed', 'error');
+        }
+    } catch (error) {
+        statusDiv.className = 'p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30';
+        statusDiv.innerHTML = `
+            <div class="flex items-start gap-2">
+                <i class="fas fa-times-circle text-red-400 mt-0.5"></i>
+                <div class="flex-1">
+                    <p class="text-red-400 font-semibold">Error</p>
+                    <p class="text-gray-400 text-xs mt-1">${error.message}</p>
+                </div>
+            </div>
+        `;
+        showToast('Connection error', 'error');
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<i class="fas fa-plug"></i> Test Connection';
+    }
+}
+
+function showToast(message, type = 'success') {
     const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'rgba(34, 197, 94, 0.95)' : 'rgba(239, 68, 68, 0.95)';
+    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+    
     toast.style.cssText = `
         position: fixed;
         bottom: 20px;
         right: 20px;
-        background: rgba(34, 197, 94, 0.95);
+        background: ${bgColor};
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         z-index: 1000;
+        animation: slide-in 0.3s ease;
     `;
-    toast.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Settings saved!';
+    toast.innerHTML = `<i class="fas fa-${icon} mr-2"></i>${message}`;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-}
-
-async function testOllamaConnection() {
-    const statusDiv = document.getElementById('connection-status');
-    const url = document.getElementById('ollama-url').value;
-    const model = document.getElementById('ollama-model').value;
     
-    statusDiv.classList.remove('hidden');
-    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Testing connection...';
-    statusDiv.className = 'text-sm text-center text-yellow-400';
-    
-    try {
-        // Call Ollama directly from browser
-        const response = await fetch(`${url}/api/tags`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const data = await response.json();
-        const hasModel = data.models?.some(m => m.name === model);
-        
-        if (hasModel) {
-            statusDiv.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Connected! Model found.';
-            statusDiv.className = 'text-sm text-center text-green-400';
-        } else {
-            statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>Connected, but model "${model}" not found. Available models: ${data.models?.map(m => m.name).join(', ') || 'none'}`;
-            statusDiv.className = 'text-sm text-center text-orange-400';
-        }
-    } catch (error) {
-        statusDiv.innerHTML = `<i class="fas fa-times-circle mr-2"></i>Connection failed: ${error.message}. Note: Ollama must be started with CORS enabled. See instructions below.`;
-        statusDiv.className = 'text-sm text-center text-red-400';
-    }
-}
-
-async function getOllamaCoaching(context) {
-    if (!ollamaEnabled) {
-        console.log('Ollama not enabled');
-        return null;
-    }
-    
-    console.log('🤖 Requesting AI coaching from Ollama...');
-    console.log('Context:', context);
-    
-    try {
-        const prompt = `You are coaching a call center agent. Based on this conversation, provide ONE specific coaching tip.
-
-Conversation:
-${context}
-
-Respond with a JSON object containing:
-- type: one of [empathy, de-escalation, action, transparency, resolution]
-- title: short coaching category (max 18 chars)
-- message: specific actionable advice (max 90 chars)
-- phrase: exact words the agent should say (max 75 chars)
-
-Example: {"type":"empathy","title":"Show Understanding","message":"Customer is upset. Acknowledge their feelings first before solving.","phrase":"I understand this is really frustrating for you."}
-
-Your coaching JSON:`;
-
-        console.log('Calling Ollama API:', ollamaUrl, 'Model:', ollamaModel);
-
-        // Call Ollama directly from browser with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
-        
-        const response = await fetch(`${ollamaUrl}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-                model: ollamaModel,
-                prompt: prompt,
-                stream: false,
-                options: {
-                    temperature: 0.7,
-                    num_predict: 50,  // Reduced from 200 to make it faster
-                    top_k: 10,
-                    top_p: 0.9
-                }
-            })
-        });
-        
-        clearTimeout(timeoutId);
-        
-        console.log('Ollama response status:', response.status);
-        
-        if (!response.ok) {
-            console.error('Ollama API error:', response.status, response.statusText);
-            return null;
-        }
-        
-        const data = await response.json();
-        console.log('Ollama raw response:', data);
-        
-        const text = data.response;
-        console.log('Response text:', text);
-        
-        // Try to parse JSON from response
-        let coaching = null;
-        
-        // Method 1: Try to find JSON with regex
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            try {
-                console.log('Found JSON in response:', jsonMatch[0]);
-                coaching = JSON.parse(jsonMatch[0]);
-            } catch (e) {
-                console.warn('JSON parsing failed:', e);
-            }
-        }
-        
-        // Method 2: If no valid JSON, try to extract meaningful text
-        if (!coaching || !coaching.message) {
-            console.warn('No valid JSON found, extracting text coaching');
-            
-            // Extract the most meaningful part of the response
-            const lines = text.split('\n').filter(l => l.trim().length > 10);
-            const mainText = lines[0] || text;
-            
-            coaching = {
-                type: 'empathy',
-                title: 'AI Coaching',
-                message: mainText.substring(0, 100).trim(),
-                phrase: lines[1] ? lines[1].substring(0, 80).trim() : null
-            };
-        }
-        
-        const result = {
-            type: coaching.type || 'empathy',
-            title: coaching.title || 'AI Coaching',
-            message: coaching.message || 'Review the conversation context',
-            phrase: coaching.phrase || null,
-            priority: 2
-        };
-        
-        console.log('✅ Final coaching result:', result);
-        return result;
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            console.error('❌ Ollama timeout: Request took too long (>3 minutes)');
-        } else {
-            console.error('❌ Ollama error:', error);
-        }
-        return null;
-    }
+    setTimeout(() => {
+        toast.style.animation = 'slide-in 0.3s ease reverse';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // Make functions available globally
@@ -903,6 +871,5 @@ window.usePhraseClicked = usePhraseClicked;
 window.toggleTheme = toggleTheme;
 window.openSettings = openSettings;
 window.closeSettings = closeSettings;
-window.toggleOllama = toggleOllama;
 window.saveSettings = saveSettings;
 window.testOllamaConnection = testOllamaConnection;
