@@ -105,12 +105,16 @@ function updateClarity(clarity) {
     }
 }
 
-function updateMetrics(empathy) {
-    const quality = Math.min(92, Math.max(65, Math.round(empathy * 9 + 29)));
-    qualityScore.textContent = `${quality}%`;
-    
-    const csat = Math.min(9.5, Math.max(5.0, (empathy * 0.95 + 1.2))).toFixed(1);
-    predictedCsat.textContent = csat;
+function updateQualityScore(quality) {
+    if (typeof quality === 'number') {
+        qualityScore.textContent = `${quality}%`;
+    }
+}
+
+function updatePredictedCsat(csat) {
+    if (typeof csat === 'number') {
+        predictedCsat.textContent = csat.toFixed(1);
+    }
 }
 
 function updateCustomerInfo(info) {
@@ -385,17 +389,22 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "priority": 1-3\n`;
         context += `  },\n`;
         context += `  "metrics": {\n`;
-        context += `    "empathy": 4.0-9.5 (use context: upset=4-6, neutral=6-7, positive=7.5-9.5),\n`;
-        context += `    "sentiment": 0.0-1.0 (0=very upset, 0.5=neutral, 0.9-1.0=very happy),\n`;
-        context += `    "stress": "High|Medium|Low",\n`;
-        context += `    "clarity": "Poor|Fair|Good",\n`;
+        context += `    "empathy": 4.0-9.5 (ANALYZE AGENT EMPATHY: cold/robotic=4-6, neutral=6-7, warm/empathetic=7.5-9.5),\n`;
+        context += `    "sentiment": 0.0-1.0 (CUSTOMER EMOTION: 0-0.2=angry/upset, 0.2-0.4=frustrated, 0.4-0.6=neutral, 0.6-0.8=satisfied, 0.8-1.0=happy),\n`;
+        context += `    "stress": "High|Medium|Low" (CUSTOMER STRESS),\n`;
+        context += `    "clarity": "Poor|Fair|Good" (CUSTOMER COMMUNICATION),\n`;
+        context += `    "quality": 40-95 (CONVERSATION QUALITY: poor=40-60, average=60-75, good=75-85, excellent=85-95),\n`;
+        context += `    "predicted_csat": 1.0-10.0 (PREDICTED SATISFACTION: angry=1-3, frustrated=3-5, neutral=5-7, satisfied=7-8, happy=8-10),\n`;
         context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved" (update progress max 4 times),\n`;
-        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue (max 25 chars)"'},\n`;
-        context += `    "tags": ["Max 4"] (ONLY customer identifiers: account tier, contact history, work situation - NEVER emotions like Happy/Frustrated/Neutral)\n`;
+        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue (max 25 chars) ONLY if customer mentions a problem"'},\n`;
+        context += `    "tags": ["Max 3"] (ONLY if explicitly mentioned: "Premium Account", "Repeat Caller", "Business Customer", "VIP" - DO NOT infer or assume)\n`;
         context += `  }\n`;
         context += `}\n\n`;
-        context += `GOOD tags: "Premium", "3rd Contact", "Work From Home", "Business Account", "VIP", "New Customer", "2+ Years"\n`;
-        context += `BAD tags: "Happy", "Frustrated", "Satisfied", "Technical Issue", "Neutral" (emotions/issues are tracked separately)\n`;
+        context += `IMPORTANT:\n`;
+        context += `- Tags: ONLY add if customer explicitly mentions (e.g., "I work from home" → "Work From Home"). NO assumptions!\n`;
+        context += `- Sentiment: Reflect CUSTOMER emotion accurately ("I'm angry" = 0.0-0.2, NOT 0.7)\n`;
+        context += `- Quality: Base on ENTIRE conversation quality, not just empathy\n`;
+        context += `- CSAT: Predict customer satisfaction score (1-10) based on tone and resolution\n`;
         context += `Return ONLY valid JSON, nothing else.`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -455,13 +464,25 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     priority: aiAnalysis.coaching.priority || 2
                 };
             } else {
-                coaching = {
-                    type: 'empathy',
-                    title: 'AI Suggestion',
-                    message: responseText.substring(0, 120),
-                    phrase: null,
-                    priority: 2
-                };
+                // Fallback - show plain text but clean it up
+                const cleanText = responseText
+                    .replace(/```json/g, '')
+                    .replace(/```/g, '')
+                    .replace(/\{[\s\S]*\}/g, '') // Remove any JSON remnants
+                    .trim();
+                
+                if (cleanText && cleanText.length > 10) {
+                    coaching = {
+                        type: 'empathy',
+                        title: 'AI Suggestion',
+                        message: cleanText.substring(0, 120),
+                        phrase: null,
+                        priority: 2
+                    };
+                } else {
+                    // Skip if no useful content
+                    coaching = null;
+                }
             }
             
             if (aiAnalysis && aiAnalysis.metrics) {
@@ -469,7 +490,16 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 
                 if (typeof metrics.empathy === 'number') {
                     updateEmpathyScore(Math.max(0, Math.min(10, metrics.empathy)));
-                    updateMetrics(metrics.empathy);
+                }
+                
+                // Quality score from AI (NOT calculated)
+                if (typeof metrics.quality === 'number') {
+                    updateQualityScore(Math.max(0, Math.min(100, metrics.quality)));
+                }
+                
+                // Predicted CSAT from AI (NOT calculated)
+                if (typeof metrics.predicted_csat === 'number') {
+                    updatePredictedCsat(Math.max(0, Math.min(10, metrics.predicted_csat)));
                 }
                 
                 if (typeof metrics.sentiment === 'number') {
@@ -508,7 +538,9 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 }
             }
             
-            addCoachingCard(coaching, true);
+            if (coaching) {
+                addCoachingCard(coaching, true);
+            }
             
         } catch (parseError) {
             console.error('Failed to parse AI response:', parseError);
@@ -593,6 +625,14 @@ function initSpeechRecognition() {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+    
+    // Increase pause tolerance - wait longer before finalizing
+    // Note: These are browser-dependent, but we can configure what we can
+    if ('webkitSpeechRecognition' in window) {
+        // For Chrome/Edge - allow longer pauses (not standard, but helps)
+        recognition.continuous = true; // Keep listening even after pauses
+    }
     
     recognition.onresult = (event) => {
         const result = event.results[event.results.length - 1];
@@ -686,6 +726,15 @@ function toggleLiveSession() {
     
     if (isListening) {
         // Start live session
+        
+        // Clear all previous data
+        clearDemoData();
+        conversationHistory = [];
+        customerIssueFixed = false;
+        statusUpdateCount = 0;
+        customerHasSpoken = false;
+        transcriptMessages.innerHTML = ''; // Clear transcript
+        
         if (!recognition) {
             recognition = initSpeechRecognition();
         }
@@ -795,8 +844,28 @@ function showConnectionWarning() {
     document.body.appendChild(warningDiv);
 }
 
+// Clear any demo customer info on load
+function clearDemoData() {
+    customerName.textContent = 'Identifying...';
+    customerName.className = 'font-medium text-sm text-gray-500';
+    customerInitials.textContent = '?';
+    customerTier.textContent = 'N/A';
+    customerStatus.textContent = 'N/A';
+    customerIssue.textContent = 'N/A';
+    customerTags.innerHTML = ''; // Clear all tags
+    sentimentLabel.textContent = 'N/A';
+    sentimentLabel.className = 'font-semibold text-gray-500';
+    stressLabel.textContent = 'N/A';
+    stressLabel.className = 'font-semibold text-gray-500';
+    clarityLabel.textContent = 'N/A';
+    clarityLabel.className = 'font-semibold text-gray-500';
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    // Clear all demo data
+    clearDemoData();
+    
     // Initialize metrics
     empathyScore.textContent = '--';
     qualityScore.textContent = '--';
