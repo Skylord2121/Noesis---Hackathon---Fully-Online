@@ -176,8 +176,8 @@ async function fetchNewMessages() {
         if (data.messages && data.messages.length > 0) {
             for (const message of data.messages) {
                 if (message.role === 'customer') {
-                    // Customer message received
-                    await handleCustomerMessage(message.content);
+                    // Customer message received with voice metrics
+                    await handleCustomerMessage(message.content, message.voiceMetrics);
                     lastMessageTimestamp = message.timestamp;
                     
                     if (!customerHasSpoken) {
@@ -191,23 +191,24 @@ async function fetchNewMessages() {
     }
 }
 
-// Handle incoming customer message
-async function handleCustomerMessage(text) {
+// Handle incoming customer message with voice metrics
+async function handleCustomerMessage(text, voiceMetrics = null) {
     // Add to transcript
     addTranscriptMessage('customer', text);
     
-    // Add to conversation history
+    // Add to conversation history with voice data
     conversationHistory.push({
         role: 'customer',
         content: text,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        voiceMetrics: voiceMetrics
     });
     
     // Animate spectrum bars when customer speaks
     animateCustomerSpectrum();
     
     // Process with AI for coaching and metrics (async)
-    processWithAI(text);
+    processWithAI(text, voiceMetrics);
 }
 
 // Animate customer voice spectrum
@@ -431,12 +432,12 @@ function updateModeIndicator(mode) {
 }
 
 // Process with AI (coaching and metrics)
-async function processWithAI(text) {
+async function processWithAI(text, voiceMetrics = null) {
     if (!ollamaConnected) return;
     
     try {
-        // Get AI analysis
-        const analysis = await getAIAnalysis(text);
+        // Get AI analysis with voice metrics
+        const analysis = await getAIAnalysis(text, voiceMetrics);
         
         if (analysis) {
             // Update metrics
@@ -485,15 +486,22 @@ async function processWithAI(text) {
 }
 
 // Get AI analysis via Cloudflare AI (cloud-based)
-async function getAIAnalysis(text) {
+async function getAIAnalysis(text, voiceMetrics = null) {
     try {
+        const requestBody = {
+            text: text,
+            conversationHistory: conversationHistory
+        };
+        
+        // Include voice metrics if available
+        if (voiceMetrics) {
+            requestBody.voiceMetrics = voiceMetrics;
+        }
+        
         const response = await fetch('/api/ai-analysis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: text,
-                conversationHistory: conversationHistory
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) throw new Error('AI analysis request failed');

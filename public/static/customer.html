@@ -364,6 +364,20 @@
         let recognitionActive = false;
         let callStartTime = null;
         let timerInterval = null;
+        
+        // Web Audio API for voice analysis
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let audioDataArray = null;
+        let voiceMetrics = {
+            volume: 0,
+            pitch: 0,
+            speechRate: 0,
+            energy: 0
+        };
+        let lastSpeechTime = 0;
+        let speechSegments = [];
 
         // Initialize Speech Recognition
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -433,8 +447,120 @@
             }
         }
 
+        // Initialize Web Audio API for voice analysis
+        async function initAudioAnalysis() {
+            try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                
+                // Configure analyser
+                analyser.fftSize = 2048;
+                analyser.smoothingTimeConstant = 0.8;
+                microphone.connect(analyser);
+                
+                // Create data array for analysis
+                const bufferLength = analyser.frequencyBinCount;
+                audioDataArray = new Uint8Array(bufferLength);
+                
+                // Start analyzing
+                analyzeAudio();
+                
+                console.log('Audio analysis initialized');
+            } catch (error) {
+                console.error('Failed to initialize audio analysis:', error);
+            }
+        }
+        
+        // Analyze audio in real-time
+        function analyzeAudio() {
+            if (!analyser || !audioDataArray) return;
+            
+            // Get frequency and time domain data
+            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+            const timeDomainData = new Uint8Array(analyser.frequencyBinCount);
+            
+            analyser.getByteFrequencyData(frequencyData);
+            analyser.getByteTimeDomainData(timeDomainData);
+            
+            // Calculate volume (RMS)
+            let sum = 0;
+            for (let i = 0; i < timeDomainData.length; i++) {
+                const normalized = (timeDomainData[i] - 128) / 128;
+                sum += normalized * normalized;
+            }
+            const rms = Math.sqrt(sum / timeDomainData.length);
+            voiceMetrics.volume = Math.round(rms * 100);
+            
+            // Calculate pitch (dominant frequency)
+            let maxValue = 0;
+            let maxIndex = 0;
+            for (let i = 0; i < frequencyData.length; i++) {
+                if (frequencyData[i] > maxValue) {
+                    maxValue = frequencyData[i];
+                    maxIndex = i;
+                }
+            }
+            const nyquist = audioContext.sampleRate / 2;
+            voiceMetrics.pitch = Math.round((maxIndex * nyquist) / frequencyData.length);
+            
+            // Calculate energy (overall intensity)
+            const totalEnergy = frequencyData.reduce((acc, val) => acc + val, 0);
+            voiceMetrics.energy = Math.round((totalEnergy / frequencyData.length) / 2.55); // Normalize to 0-100
+            
+            // Update visual bars based on volume
+            updateAudioBars(voiceMetrics.volume);
+            
+            // Track speech segments for rate calculation
+            if (voiceMetrics.volume > 15) { // Speech detected threshold
+                const now = Date.now();
+                if (lastSpeechTime > 0) {
+                    const gap = now - lastSpeechTime;
+                    if (gap < 2000) { // Less than 2 seconds = continuous speech
+                        speechSegments.push(gap);
+                        if (speechSegments.length > 10) speechSegments.shift(); // Keep last 10
+                    }
+                }
+                lastSpeechTime = now;
+                
+                // Calculate speech rate (gaps between words)
+                if (speechSegments.length > 3) {
+                    const avgGap = speechSegments.reduce((a, b) => a + b, 0) / speechSegments.length;
+                    voiceMetrics.speechRate = Math.round(1000 / avgGap); // Words per second estimate
+                }
+            }
+            
+            // Continue analyzing
+            requestAnimationFrame(analyzeAudio);
+        }
+        
+        // Update audio visualization bars based on volume
+        function updateAudioBars(volume) {
+            const bars = document.querySelectorAll('.audio-bar');
+            bars.forEach((bar, index) => {
+                if (volume > 15) { // Active speech
+                    bar.classList.add('active');
+                    // Vary height based on volume and bar position
+                    const height = 20 + (volume / 2) + (Math.sin(Date.now() / 200 + index) * 15);
+                    bar.style.height = `${Math.min(height, 60)}px`;
+                } else {
+                    bar.classList.remove('active');
+                    bar.style.height = '20px';
+                }
+            });
+        }
+
         function startRecording() {
             try {
+                // Initialize audio analysis
+                if (!audioContext) {
+                    initAudioAnalysis();
+                }
+                
                 if (!recognitionActive) {
                     recognition.start();
                     recognitionActive = true;
@@ -516,17 +642,33 @@
 
         async function sendMessage(role, content) {
             try {
+                // Include voice metrics with customer messages
+                const messageData = {
+                    sessionId,
+                    role,
+                    content,
+                    timestamp: Date.now()
+                };
+                
+                // Add voice metrics if available (customer only)
+                if (role === 'customer' && voiceMetrics.volume > 0) {
+                    messageData.voiceMetrics = {
+                        volume: voiceMetrics.volume,
+                        pitch: voiceMetrics.pitch,
+                        speechRate: voiceMetrics.speechRate,
+                        energy: voiceMetrics.energy,
+                        timestamp: Date.now()
+                    };
+                    
+                    console.log('Voice metrics:', voiceMetrics);
+                }
+                
                 const response = await fetch('/api/session/message', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        sessionId,
-                        role,
-                        content,
-                        timestamp: Date.now()
-                    })
+                    body: JSON.stringify(messageData)
                 });
 
                 if (!response.ok) {

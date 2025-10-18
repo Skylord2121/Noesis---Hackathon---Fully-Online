@@ -48,7 +48,7 @@ import companyKnowledge from '../config/company-knowledge.json'
 // Cloudflare AI Analysis Endpoint
 app.post('/api/ai-analysis', async (c) => {
   try {
-    const { text, conversationHistory } = await c.req.json()
+    const { text, conversationHistory, voiceMetrics } = await c.req.json()
     
     if (!text) {
       return c.json({ success: false, error: 'Text is required' }, 400)
@@ -59,6 +59,16 @@ app.post('/api/ai-analysis', async (c) => {
       ?.slice(-10)
       .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
       .join('\n') || ''
+    
+    // Build voice analysis context if available
+    let voiceContext = ''
+    if (voiceMetrics && voiceMetrics.volume > 0) {
+      voiceContext = `\nVOICE ANALYSIS:
+- Volume: ${voiceMetrics.volume}/100 (${voiceMetrics.volume > 60 ? 'LOUD - possibly angry/stressed' : voiceMetrics.volume > 30 ? 'Normal' : 'Quiet - possibly calm/sad'})
+- Pitch: ${voiceMetrics.pitch}Hz (${voiceMetrics.pitch > 250 ? 'HIGH - stressed/excited' : voiceMetrics.pitch > 150 ? 'Normal' : 'LOW - calm/sad'})
+- Speech Rate: ${voiceMetrics.speechRate} words/sec (${voiceMetrics.speechRate > 4 ? 'FAST - stressed/rushed' : voiceMetrics.speechRate > 2 ? 'Normal' : 'SLOW - calm/confused'})
+- Energy: ${voiceMetrics.energy}/100 (${voiceMetrics.energy > 70 ? 'HIGH intensity' : voiceMetrics.energy > 30 ? 'Moderate' : 'LOW intensity'})\n`
+    }
 
     // Build company knowledge context
     const knowledgeDocs = Object.values(companyKnowledge.documents)
@@ -82,10 +92,10 @@ AVOID PHRASES: ${companyKnowledge.forbidden_phrases.join(', ')}
 
 CONVERSATION:
 ${conversationContext}
-
+${voiceContext}
 LATEST CUSTOMER: "${text}"
 
-TASK: Provide SHORT, actionable coaching using COMPANY KNOWLEDGE above. Keep suggestions brief and punchy.
+TASK: Provide SHORT, actionable coaching using COMPANY KNOWLEDGE and VOICE ANALYSIS above. Keep suggestions brief and punchy.
 
 CRITICAL RULES:
 1. CUSTOMER NAME: Extract if mentioned ("My name is Sarah", "I'm John", "This is Mike")
@@ -387,7 +397,7 @@ app.get('/api/session/check', async (c) => {
 // Send message to session
 app.post('/api/session/message', async (c) => {
   try {
-    const { sessionId, role, content, timestamp } = await c.req.json()
+    const { sessionId, role, content, timestamp, voiceMetrics } = await c.req.json()
     
     if (!sessionId || !role || !content) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
@@ -396,7 +406,8 @@ app.post('/api/session/message', async (c) => {
     const message = {
       role,
       content,
-      timestamp: timestamp || Date.now()
+      timestamp: timestamp || Date.now(),
+      voiceMetrics: voiceMetrics || null  // Include voice analysis data
     }
     
     // Store in KV (for production)
