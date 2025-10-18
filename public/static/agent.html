@@ -815,42 +815,46 @@
                     </div>
                 </div>
 
-                <!-- Document Management Section -->
+                <!-- Company Knowledge Section -->
                 <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 h-fit">
                     <h3 class="text-sm font-semibold text-purple-400 mb-3 flex items-center">
-                        <i class="fas fa-file-alt mr-2"></i>
-                        Company Documents
+                        <i class="fas fa-book mr-2"></i>
+                        Company Knowledge
                     </h3>
                     
                     <div class="space-y-2">
-                        <p class="text-xs text-gray-400">
-                            Add company policy documents for AI to reference in coaching suggestions.
-                        </p>
-                        
-                        <div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-2">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i class="fas fa-info-circle text-blue-400 text-xs"></i>
-                                <span class="text-xs font-semibold text-gray-300">Quick Setup</span>
+                        <div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-check-circle text-green-400 text-sm"></i>
+                                <span class="text-xs font-semibold text-gray-300">Active</span>
                             </div>
-                            <ol class="text-xs text-gray-400 space-y-0.5 ml-5 list-decimal">
-                                <li>Add files to <code class="bg-slate-700/50 px-1 rounded text-[10px]">company-docs/</code></li>
-                                <li>Run <code class="bg-slate-700/50 px-1 rounded text-[10px]">python3 scripts/document_indexer.py</code></li>
-                                <li>AI references your policies automatically</li>
-                            </ol>
+                            <p class="text-xs text-gray-400">
+                                AI is using your company policies and procedures to coach agents in real-time.
+                            </p>
+                        </div>
+                        
+                        <div class="bg-slate-800/40 border border-slate-700/30 rounded p-2">
+                            <div class="text-xs text-gray-400 space-y-1">
+                                <div><strong class="text-gray-300">Loaded Docs:</strong> <span id="docs-count">4</span></div>
+                                <div><strong class="text-gray-300">Categories:</strong> Policies, Scripts, Procedures</div>
+                                <div><strong class="text-gray-300">Last Updated:</strong> <span id="docs-updated">Today</span></div>
+                            </div>
                         </div>
                         
                         <button 
-                            onclick="openDocumentsFolder()" 
+                            onclick="viewCompanyKnowledge()" 
                             class="w-full px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 rounded-lg text-xs transition flex items-center justify-center gap-2"
                         >
-                            <i class="fas fa-folder-open"></i>
-                            <span>Open Documents Folder</span>
+                            <i class="fas fa-eye"></i>
+                            <span>View Knowledge Base</span>
                         </button>
                         
-                        <div id="documents-list" class="bg-slate-800/40 border border-slate-700/30 rounded p-2">
-                            <div class="text-xs text-gray-500 text-center">
-                                <i class="fas fa-file-invoice mr-1"></i>
-                                4 sample documents included
+                        <div class="bg-blue-500/10 border border-blue-500/20 rounded p-2">
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-info-circle text-blue-400 text-xs mt-0.5"></i>
+                                <div class="text-xs text-blue-300">
+                                    <strong>How to Update:</strong> Edit <code class="bg-slate-700/50 px-1 rounded text-[10px]">config/company-knowledge.json</code> and rebuild.
+                                </div>
                             </div>
                         </div>
                     </div>

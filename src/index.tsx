@@ -42,6 +42,9 @@ app.get('/api/ollama/tags', async (c) => {
   }
 })
 
+// Load company knowledge
+import companyKnowledge from '../config/company-knowledge.json'
+
 // Cloudflare AI Analysis Endpoint
 app.post('/api/ai-analysis', async (c) => {
   try {
@@ -57,27 +60,47 @@ app.post('/api/ai-analysis', async (c) => {
       .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
       .join('\n') || ''
 
+    // Build company knowledge context
+    const knowledgeDocs = Object.values(companyKnowledge.documents)
+      .map(doc => `${doc.title}:\n${doc.content}`)
+      .join('\n\n---\n\n')
+    
+    const quickRefs = Object.entries(companyKnowledge.quick_references)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n')
+
     const prompt = `You are an expert customer service analyst providing real-time coaching to a live agent.
+
+COMPANY KNOWLEDGE BASE:
+${knowledgeDocs}
+
+QUICK REFERENCES:
+${quickRefs}
+
+RECOMMENDED PHRASES: ${companyKnowledge.recommended_phrases.join(', ')}
+AVOID PHRASES: ${companyKnowledge.forbidden_phrases.join(', ')}
 
 CONVERSATION:
 ${conversationContext}
 
 LATEST CUSTOMER: "${text}"
 
-TASK: Provide SHORT, actionable coaching. Keep suggestions brief and punchy.
+TASK: Provide SHORT, actionable coaching using COMPANY KNOWLEDGE above. Keep suggestions brief and punchy.
 
 CRITICAL RULES:
 1. CUSTOMER NAME: Extract if mentioned ("My name is Sarah", "I'm John", "This is Mike")
 2. ISSUE: Be specific (Password Reset, Billing Dispute, Refund, Shipping Delay, Account Locked)
-3. COACHING: Keep it SHORT unless complex protocol needed
-   - DEFAULT: 1-2 sentences max
+3. COACHING: 
+   - Use COMPANY KNOWLEDGE BASE to reference specific policies/procedures
+   - Keep it SHORT unless complex protocol needed (1-2 sentences max)
    - ONLY give detailed steps if technical issue requires it
-   - Focus on WHAT to do, not HOW in detail
+   - Cite specific policy/procedure when relevant (e.g., "Per refund policy...")
+   - Use RECOMMENDED PHRASES, avoid FORBIDDEN PHRASES
 
-GOOD SHORT COACHING:
-"Acknowledge frustration first. Say: 'I understand how frustrating this is. Let me help you right away.'"
-"Ask for order number. Check if refund was already issued."
-"Password reset link expires in 24hrs. Check spam folder if not received."
+GOOD SHORT COACHING EXAMPLES:
+"Per refund policy: Full refund available within 30 days. Ask for purchase date."
+"Follow password reset procedure: Verify email and last 4 digits of phone."
+"Use greeting script for upset customers. Acknowledge frustration first."
 
 Respond ONLY with valid JSON:
 {
@@ -447,40 +470,36 @@ app.get('/api/session/messages', async (c) => {
   }
 })
 
-// Query Documents API - Search indexed company documents
-app.post('/api/query-docs', async (c) => {
+// Get Company Knowledge
+app.get('/api/company-knowledge', async (c) => {
   try {
-    const { query, top_k = 3, ollamaUrl } = await c.req.json()
-    const url = ollamaUrl || 'http://localhost:11434'
-    
-    if (!query || query.trim().length === 0) {
-      return c.json({ 
-        success: false, 
-        error: 'Query is required' 
-      }, 400)
-    }
-    
-    // Note: This endpoint expects the user to have run document_indexer.py locally
-    // The actual RAG retrieval happens via the query_documents.py script
-    // For now, we'll provide a simple response suggesting relevant document sections
-    
-    // In production, you would:
-    // 1. Load the vector index from disk (.index directory)
-    // 2. Query it with the user's question
-    // 3. Return the most relevant chunks
-    
-    // For MVP, we'll use Ollama directly with document context
-    // This is a simplified approach - full RAG would use the vector index
-    
-    const response = {
+    return c.json({ 
+      success: true, 
+      knowledge: companyKnowledge 
+    })
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error.message 
+    }, 500)
+  }
+})
+
+// Update Company Knowledge (simple version - returns instructions)
+app.post('/api/company-knowledge', async (c) => {
+  try {
+    return c.json({
       success: true,
-      query: query,
-      message: 'Document query endpoint ready. Run document_indexer.py locally to enable full RAG retrieval.',
-      suggestion: 'For now, the AI coaching system will include general guidance. After indexing, it will reference specific company policies.'
-    }
-    
-    return c.json(response)
-    
+      message: 'To update company knowledge, edit the file: /home/user/webapp/config/company-knowledge.json',
+      instructions: [
+        '1. Open the file in a text editor',
+        '2. Update the documents section with your company policies',
+        '3. Save the file',
+        '4. Rebuild and restart: npm run build && pm2 restart webapp',
+        '5. AI will automatically use the updated knowledge in coaching'
+      ],
+      currentFile: '/home/user/webapp/config/company-knowledge.json'
+    })
   } catch (error) {
     return c.json({ 
       success: false, 

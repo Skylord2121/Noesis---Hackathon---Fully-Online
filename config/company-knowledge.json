@@ -1,0 +1,48 @@
+{
+  "lastUpdated": "2025-10-18T19:00:00Z",
+  "documents": {
+    "refund_policy": {
+      "title": "Refund Policy",
+      "category": "billing",
+      "content": "REFUND POLICY:\n\n1. FULL REFUNDS (100%):\n   - Within 30 days of purchase\n   - Product defect or service failure\n   - Unauthorized charges\n\n2. PARTIAL REFUNDS (50%):\n   - 31-60 days after purchase\n   - Customer dissatisfaction (case-by-case)\n\n3. NO REFUNDS:\n   - After 60 days\n   - Digital products already downloaded\n   - Services already rendered\n\n4. PROCESS:\n   - Customer requests refund via support\n   - Agent verifies eligibility\n   - Refund processed within 5-7 business days\n   - Funds return to original payment method"
+    },
+    "escalation_procedures": {
+      "title": "Escalation Procedures",
+      "category": "procedures",
+      "content": "ESCALATION PROCEDURES:\n\n1. WHEN TO ESCALATE:\n   - Customer requests supervisor\n   - Billing dispute over $500\n   - Legal threats or complaints\n   - Agent unable to resolve after 15 minutes\n   - Abusive or threatening language\n\n2. ESCALATION CONTACTS:\n   - Tier 2 Support: Use internal transfer (ext. 200)\n   - Supervisor: Manager on duty (ext. 300)\n   - Billing Specialist: ext. 400\n   - Technical Lead: ext. 500\n\n3. ESCALATION SCRIPT:\n   'I understand this is important to you. Let me connect you with my supervisor who can better assist with this situation. Please hold for just a moment.'\n\n4. DOCUMENTATION:\n   - Log reason for escalation\n   - Summarize conversation so far\n   - Note customer's main concern\n   - Transfer with warm handoff when possible"
+    },
+    "password_reset": {
+      "title": "Password Reset Procedure",
+      "category": "technical",
+      "content": "PASSWORD RESET PROCEDURE:\n\n1. VERIFICATION (REQUIRED):\n   - Ask for email address associated with account\n   - Verify last 4 digits of phone number OR\n   - Verify billing zip code\n   - Security question (if applicable)\n\n2. RESET PROCESS:\n   - Navigate to: Admin Panel > Users > Search by Email\n   - Click 'Send Password Reset Email'\n   - Confirm email sent successfully\n   - Ask customer to check inbox and spam folder\n   - Reset link valid for 1 hour\n\n3. IF EMAIL NOT RECEIVED:\n   - Verify email address spelling\n   - Check if email is marked as bounced\n   - Manually reset and provide temporary password\n   - Temporary password format: FirstName + Last4Phone + !\n   - Customer must change on first login\n\n4. SECURITY NOTES:\n   - NEVER ask for customer's current password\n   - NEVER share passwords over phone/chat\n   - Log all password reset attempts"
+    },
+    "greeting_scripts": {
+      "title": "Call Opening Scripts",
+      "category": "scripts",
+      "content": "CALL OPENING SCRIPTS:\n\n1. STANDARD GREETING:\n   'Thank you for contacting [Company Name], my name is [Your Name]. How can I help you today?'\n\n2. CALLBACK/FOLLOWUP:\n   'Hi [Customer Name], this is [Your Name] from [Company Name] following up on your recent inquiry. Do you have a moment to discuss?'\n\n3. TECHNICAL SUPPORT:\n   'Thank you for calling [Company Name] technical support. My name is [Your Name]. I'll do my best to resolve your issue quickly. Can you describe what's happening?'\n\n4. BILLING INQUIRIES:\n   'Thank you for contacting [Company Name] billing department. My name is [Your Name]. I can help you with that. For security, may I verify your account by confirming your email address?'\n\n5. ANGRY/UPSET CUSTOMER:\n   'I understand you're frustrated, and I'm here to help. My name is [Your Name], and I'll do everything I can to resolve this for you today. Can you tell me what happened?'"
+    }
+  },
+  "quick_references": {
+    "business_hours": "Monday-Friday 9AM-6PM EST, Saturday 10AM-4PM EST, Closed Sunday",
+    "average_response_time": "Email: 24-48 hours, Chat: <5 minutes, Phone: Immediate",
+    "supervisor_availability": "Monday-Friday 9AM-5PM EST",
+    "shipping_times": "Standard: 5-7 business days, Express: 2-3 business days, Overnight: Next business day",
+    "return_window": "30 days from delivery date"
+  },
+  "forbidden_phrases": [
+    "I don't know",
+    "That's not my department",
+    "There's nothing I can do",
+    "You'll have to call back",
+    "That's not our policy",
+    "You're wrong"
+  ],
+  "recommended_phrases": [
+    "Let me look into that for you",
+    "I'll find out and get back to you right away",
+    "I can help you with that",
+    "Here's what I can do for you",
+    "Let me connect you with the right person",
+    "I understand your concern"
+  ]
+}

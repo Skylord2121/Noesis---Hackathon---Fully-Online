@@ -709,6 +709,153 @@ function toggleTheme() {
     }
 }
 
+// View Company Knowledge Base
+async function viewCompanyKnowledge() {
+    try {
+        const response = await fetch('/api/company-knowledge');
+        const data = await response.json();
+        
+        if (data.success && data.knowledge) {
+            const knowledge = data.knowledge;
+            
+            // Create modal to display knowledge
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4';
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+            
+            const docsHtml = Object.entries(knowledge.documents)
+                .map(([key, doc]) => `
+                    <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3 mb-3">
+                        <div class="flex items-start justify-between mb-2">
+                            <h4 class="font-semibold text-sm text-purple-300">${doc.title}</h4>
+                            <span class="text-xs text-gray-500 px-2 py-0.5 bg-slate-700/50 rounded">${doc.category}</span>
+                        </div>
+                        <pre class="text-xs text-gray-400 whitespace-pre-wrap font-mono bg-slate-900/30 p-2 rounded overflow-auto max-h-32">${doc.content}</pre>
+                    </div>
+                `).join('');
+            
+            const quickRefsHtml = Object.entries(knowledge.quick_references)
+                .map(([key, value]) => `
+                    <div class="flex justify-between text-xs py-1 border-b border-slate-700/30">
+                        <span class="text-gray-400">${key.replace(/_/g, ' ')}:</span>
+                        <span class="text-gray-300 font-medium">${value}</span>
+                    </div>
+                `).join('');
+            
+            modal.innerHTML = `
+                <div class="glass-panel max-w-4xl w-full max-h-[90vh] overflow-auto">
+                    <div class="sticky top-0 bg-slate-900/95 backdrop-blur-sm p-4 border-b border-slate-700/30 flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-purple-400 flex items-center gap-2">
+                            <i class="fas fa-book"></i>
+                            Company Knowledge Base
+                        </h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="p-4 space-y-4">
+                        <!-- Documents -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                                <i class="fas fa-file-alt text-purple-400"></i>
+                                Policy Documents (${Object.keys(knowledge.documents).length})
+                            </h4>
+                            ${docsHtml}
+                        </div>
+                        
+                        <!-- Quick References -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                                <i class="fas fa-bolt text-yellow-400"></i>
+                                Quick References
+                            </h4>
+                            <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3">
+                                ${quickRefsHtml}
+                            </div>
+                        </div>
+                        
+                        <!-- Recommended Phrases -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                                <i class="fas fa-check text-green-400"></i>
+                                Recommended Phrases
+                            </h4>
+                            <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3">
+                                <div class="flex flex-wrap gap-2">
+                                    ${knowledge.recommended_phrases.map(phrase => 
+                                        `<span class="text-xs px-2 py-1 bg-green-500/20 text-green-300 rounded-full">${phrase}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Forbidden Phrases -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                                <i class="fas fa-ban text-red-400"></i>
+                                Avoid These Phrases
+                            </h4>
+                            <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3">
+                                <div class="flex flex-wrap gap-2">
+                                    ${knowledge.forbidden_phrases.map(phrase => 
+                                        `<span class="text-xs px-2 py-1 bg-red-500/20 text-red-300 rounded-full line-through">${phrase}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Update Instructions -->
+                        <div class="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                            <div class="flex items-start gap-2 mb-2">
+                                <i class="fas fa-info-circle text-blue-400 text-sm mt-0.5"></i>
+                                <div class="flex-1">
+                                    <h5 class="text-xs font-semibold text-blue-300 mb-1">How to Update</h5>
+                                    <p class="text-xs text-blue-200/80">
+                                        Edit <code class="bg-slate-700/50 px-1 rounded">config/company-knowledge.json</code> and rebuild the project.
+                                    </p>
+                                    <p class="text-xs text-blue-200/60 mt-1">
+                                        Last updated: ${new Date(knowledge.lastUpdated).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Update docs count in settings
+            document.getElementById('docs-count').textContent = Object.keys(knowledge.documents).length;
+            document.getElementById('docs-updated').textContent = new Date(knowledge.lastUpdated).toLocaleDateString();
+            
+        } else {
+            showToast('Failed to load company knowledge', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading company knowledge:', error);
+        showToast('Error loading knowledge base', 'error');
+    }
+}
+
+// Load docs count on page load
+async function loadCompanyKnowledgeInfo() {
+    try {
+        const response = await fetch('/api/company-knowledge');
+        const data = await response.json();
+        
+        if (data.success && data.knowledge) {
+            document.getElementById('docs-count').textContent = Object.keys(data.knowledge.documents).length;
+            document.getElementById('docs-updated').textContent = new Date(data.knowledge.lastUpdated).toLocaleDateString();
+        }
+    } catch (error) {
+        console.log('Could not load company knowledge info');
+    }
+}
+
 function openDocumentsFolder() {
     const folderPath = 'C:\\Users\\Nimbus VFX\\Desktop\\Company Docs';
     
@@ -732,6 +879,9 @@ function openDocumentsFolder() {
 window.addEventListener('DOMContentLoaded', () => {
     // AI is always connected (cloud-based)
     ollamaConnected = true;
+    
+    // Load company knowledge info
+    loadCompanyKnowledgeInfo();
     
     // Show welcome message
     console.log('Agent Dashboard Ready (Cloud AI Enabled)');
