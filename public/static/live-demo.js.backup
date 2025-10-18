@@ -315,13 +315,16 @@ async function getAgentResponse(customerMessage) {
         const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
         const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
         
+        // SET AGENT THINKING FLAG - prevents mic auto-restart
         isAgentThinking = true;
         
+        // PAUSE MICROPHONE while AI is responding to prevent transcript disruption
         if (recognition && isListening && !isPaused) {
             try {
                 recognition.stop();
+                console.log('🎤 Microphone STOPPED - Agent thinking');
             } catch (e) {
-                // Already stopped
+                console.log('Recognition already stopped');
             }
         }
         
@@ -383,38 +386,46 @@ async function getAgentResponse(customerMessage) {
             text: agentText
         });
         
+        // CLEAR AGENT THINKING FLAG
         isAgentThinking = false;
         
+        // RESTART VOICE ANIMATION - important for spectrum bars to work again
         if (isListening && !isPaused) {
             animateSpectrum();
         }
         
+        // RESUME MICROPHONE after AI finishes responding
         if (recognition && isListening && !isPaused) {
             setTimeout(() => {
                 try {
                     recognition.start();
+                    console.log('🎤 Microphone RESUMED - Agent finished');
                 } catch (e) {
-                    // Already running
+                    console.log('Recognition already running');
                 }
-            }, 500);
+            }, 500); // Small delay to ensure clean transition
         }
         
     } catch (error) {
         console.error('Agent response failed:', error);
         removeAgentThinking();
         
+        // CLEAR AGENT THINKING FLAG even on error
         isAgentThinking = false;
         
+        // RESTART VOICE ANIMATION even on error
         if (isListening && !isPaused) {
             animateSpectrum();
         }
         
+        // Make sure to resume microphone even if agent response fails
         if (recognition && isListening && !isPaused) {
             setTimeout(() => {
                 try {
                     recognition.start();
+                    console.log('🎤 Microphone RESUMED - After error');
                 } catch (e) {
-                    // Already running
+                    console.log('Recognition already running');
                 }
             }, 500);
         }
@@ -654,24 +665,38 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 const customerInfo = {};
                 
                 // NAME: Extract customer name if provided
-                if (metrics.customer_name && typeof metrics.customer_name === 'string') {
+                if (metrics.customer_name && metrics.customer_name !== null && typeof metrics.customer_name === 'string') {
                     const name = metrics.customer_name.trim();
                     if (name.length > 0 && name.length < 30) {
                         customerInfo.name = name;
+                        // Generate initials from name
                         const nameParts = name.split(' ');
                         customerInfo.initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').substring(0, 2);
+                        console.log('✅ Customer name detected:', name);
                     }
                 }
                 
                 // ISSUE: Only set once when customer describes actual problem (not emotion)
+                console.log('🔍 Issue detection - customerIssueFixed:', customerIssueFixed, 'metrics.issue:', metrics.issue);
+                
                 if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null && metrics.issue !== 'null') {
+                    // Validate that issue is not an emotion word
                     const emotionWords = ['angry', 'frustrated', 'upset', 'happy', 'satisfied', 'annoyed', 'mad', 'furious'];
                     const isEmotion = emotionWords.some(word => metrics.issue.toLowerCase().includes(word));
+                    
+                    console.log('🔍 Issue validation - isEmotion:', isEmotion, 'issue text:', metrics.issue);
                     
                     if (!isEmotion) {
                         customerInfo.issue = metrics.issue.substring(0, 30);
                         customerIssueFixed = true;
+                        console.log('✅ Issue identified:', metrics.issue);
+                    } else {
+                        console.log('❌ Rejected emotion as issue:', metrics.issue);
                     }
+                } else if (!customerIssueFixed) {
+                    console.log('⚠️ Issue not detected from AI response');
+                } else {
+                    console.log('ℹ️ Issue already fixed, keeping:', customerIssue.textContent);
                 }
                 if (metrics.tags && Array.isArray(metrics.tags)) {
                     customerInfo.tags = metrics.tags.slice(0, 4);
@@ -782,7 +807,12 @@ function initSpeechRecognition() {
         const transcript = result[0].transcript;
         
         if (result.isFinal) {
+            console.log('Customer said:', transcript);
+            
+            // Capitalize first letter for display
             const capitalizedTranscript = transcript.charAt(0).toUpperCase() + transcript.slice(1);
+            
+            // YOUR VOICE = CUSTOMER
             addTranscriptLine('Customer', capitalizedTranscript, 'customer');
             
             conversationHistory.push({
@@ -813,11 +843,13 @@ function initSpeechRecognition() {
     };
     
     recognition.onend = () => {
+        // Only restart if listening AND not paused AND not agent thinking
         if (isListening && !isPaused && !isAgentThinking) {
             try {
                 recognition.start();
+                console.log('Recognition auto-restarted');
             } catch (e) {
-                // Could not restart
+                console.log('Could not restart recognition:', e.message);
             }
         }
     };
@@ -977,11 +1009,13 @@ function togglePause() {
     const modeIndicator = document.getElementById('mode-indicator');
     
     if (isPaused) {
+        // Pause the session - STOP MICROPHONE COMPLETELY
         if (recognition) {
             try {
                 recognition.stop();
+                console.log('🎤 Microphone STOPPED - Session paused by user');
             } catch (e) {
-                // Already stopped
+                console.log('Recognition already stopped');
             }
         }
         
@@ -999,11 +1033,13 @@ function togglePause() {
         
         showToast('Session paused', 'success');
     } else {
+        // Resume the session - RESTART MICROPHONE
         if (recognition && isListening && !isAgentThinking) {
             try {
                 recognition.start();
+                console.log('🎤 Microphone RESUMED - User clicked resume');
             } catch (e) {
-                // Already started
+                console.log('Recognition already started');
             }
         }
         
