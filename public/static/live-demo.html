@@ -302,6 +302,83 @@
             background: rgba(241, 245, 249, 0.5) !important;
         }
 
+        /* Light Mode - Avatar and Profile Pictures - Add dark borders */
+        body.light-mode .w-10.h-10.rounded-full,
+        body.light-mode .w-8.h-8.rounded-full {
+            box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.3) !important;
+        }
+
+        /* Light Mode - Customer initials avatar */
+        body.light-mode .bg-gradient-to-br.from-yellow-500.to-orange-500 {
+            background: linear-gradient(to bottom right, #f59e0b, #ea580c) !important;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4) !important;
+        }
+
+        /* Light Mode - Agent/Customer avatars in transcript */
+        body.light-mode .transcript-line .bg-gradient-to-br.from-blue-500.to-cyan-500 {
+            background: linear-gradient(to bottom right, #3b82f6, #06b6d4) !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4) !important;
+        }
+
+        body.light-mode .transcript-line .bg-gradient-to-br.from-yellow-500.to-orange-500 {
+            background: linear-gradient(to bottom right, #f59e0b, #ea580c) !important;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4) !important;
+        }
+
+        /* Light Mode - Company logo in nav */
+        body.light-mode .bg-gradient-to-br.from-blue-600 {
+            background: linear-gradient(to bottom right, #2563eb, #1d4ed8, #1e40af) !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
+        }
+
+        /* Light Mode - Bottom Control Buttons - Increase opacity and contrast */
+        body.light-mode .mobile-controls .bg-yellow-500\/20 {
+            background: rgba(234, 179, 8, 0.35) !important;
+            border-width: 2px !important;
+        }
+
+        body.light-mode .mobile-controls .bg-yellow-500\/30 {
+            background: rgba(234, 179, 8, 0.45) !important;
+        }
+
+        body.light-mode .mobile-controls .text-yellow-300 {
+            color: #a16207 !important;
+            font-weight: 600 !important;
+        }
+
+        body.light-mode .mobile-controls .bg-orange-500 {
+            background: #f97316 !important;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3) !important;
+        }
+
+        body.light-mode .mobile-controls .bg-blue-500\/20 {
+            background: rgba(59, 130, 246, 0.35) !important;
+            border-width: 2px !important;
+        }
+
+        body.light-mode .mobile-controls .bg-blue-500\/30 {
+            background: rgba(59, 130, 246, 0.45) !important;
+        }
+
+        body.light-mode .mobile-controls .text-blue-300 {
+            color: #1e40af !important;
+            font-weight: 600 !important;
+        }
+
+        body.light-mode .mobile-controls .bg-red-500 {
+            background: #ef4444 !important;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+        }
+
+        body.light-mode .mobile-controls .text-white {
+            color: #ffffff !important;
+        }
+
+        /* Light Mode - Button icons more visible */
+        body.light-mode .mobile-controls i {
+            filter: brightness(0.8);
+        }
+
         /* Mobile Responsive Design */
         @media (max-width: 768px) {
             html, body {
