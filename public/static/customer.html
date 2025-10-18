@@ -21,7 +21,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 40px 20px 40px 20px;
+            padding: 40px 20px 120px 20px;
             color: white;
             position: relative;
             overflow: hidden;
@@ -286,7 +286,18 @@
         @supports (padding-top: env(safe-area-inset-top)) {
             body {
                 padding-top: max(40px, env(safe-area-inset-top));
-                padding-bottom: max(40px, env(safe-area-inset-bottom));
+                padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom)));
+            }
+        }
+        
+        /* Additional mobile bottom padding to avoid navigation bars */
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 140px;
+            }
+            
+            .call-controls {
+                padding-bottom: 40px;
             }
         }
     </style>
@@ -349,13 +360,20 @@
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session');
 
+        console.log('[CUSTOMER] Initializing customer page...');
+        console.log('[CUSTOMER] Session ID:', sessionId);
+        console.log('[CUSTOMER] Current URL:', window.location.href);
+
         if (!sessionId) {
+            console.error('[CUSTOMER] No session ID found in URL');
             document.body.innerHTML = `
                 <div class="error-message">
                     <div class="error-title">Invalid Session</div>
                     <div class="error-subtitle">Please use the link provided by your support agent</div>
                 </div>
             `;
+        } else {
+            console.log('[CUSTOMER] Session ID valid, initializing...');
         }
 
         // State
@@ -381,19 +399,25 @@
 
         // Initialize Speech Recognition
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            console.log('[CUSTOMER] Speech recognition available');
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
+            console.log('[CUSTOMER] Speech recognition initialized');
 
             recognition.onresult = async (event) => {
+                console.log('[CUSTOMER] Speech recognition result received');
                 let interimTranscript = '';
                 
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
+                    console.log(`[CUSTOMER] Transcript (${event.results[i].isFinal ? 'FINAL' : 'interim'}): "${transcript}"`);
+                    
                     if (event.results[i].isFinal) {
                         // Send final transcript to server
+                        console.log('[CUSTOMER] Sending FINAL transcript to server...');
                         await sendMessage('customer', transcript);
                         document.getElementById('call-subtitle').textContent = 'Listening...';
                     } else {
@@ -429,9 +453,12 @@
             // Auto-start recording when page loads
             setTimeout(() => {
                 if (sessionId) {
+                    console.log('[CUSTOMER] Auto-starting microphone in 500ms...');
                     toggleMute();
                 }
             }, 500);
+        } else {
+            console.error('[CUSTOMER] Speech recognition NOT available in this browser');
         }
 
         function toggleMute() {
@@ -556,14 +583,19 @@
 
         function startRecording() {
             try {
+                console.log('[CUSTOMER] Starting recording...');
+                
                 // Initialize audio analysis
                 if (!audioContext) {
+                    console.log('[CUSTOMER] Initializing audio analysis...');
                     initAudioAnalysis();
                 }
                 
                 if (!recognitionActive) {
+                    console.log('[CUSTOMER] Starting speech recognition...');
                     recognition.start();
                     recognitionActive = true;
+                    console.log('[CUSTOMER] Speech recognition started');
                 }
                 isRecording = true;
 
@@ -571,6 +603,7 @@
                 if (!callStartTime) {
                     callStartTime = Date.now();
                     timerInterval = setInterval(updateTimer, 1000);
+                    console.log('[CUSTOMER] Call timer started');
                 }
 
                 // Update UI
@@ -584,8 +617,9 @@
                 bars.forEach(bar => bar.classList.add('active'));
 
                 updateConnectionStatus(true);
+                console.log('[CUSTOMER] Recording UI updated, ready for speech');
             } catch (e) {
-                console.error('Error starting recording:', e);
+                console.error('[CUSTOMER] Error starting recording:', e);
             }
         }
 
@@ -642,6 +676,8 @@
 
         async function sendMessage(role, content) {
             try {
+                console.log(`[CUSTOMER] Sending message - Role: ${role}, Content: "${content.substring(0, 50)}..."`);
+                
                 // Include voice metrics with customer messages
                 const messageData = {
                     sessionId,
@@ -660,8 +696,10 @@
                         timestamp: Date.now()
                     };
                     
-                    console.log('Voice metrics:', voiceMetrics);
+                    console.log('[CUSTOMER] Voice metrics:', voiceMetrics);
                 }
+                
+                console.log('[CUSTOMER] Sending to API:', messageData);
                 
                 const response = await fetch('/api/session/message', {
                     method: 'POST',
@@ -672,12 +710,16 @@
                 });
 
                 if (!response.ok) {
+                    console.error('[CUSTOMER] API Error:', response.status, response.statusText);
                     throw new Error('Failed to send message');
                 }
 
+                const result = await response.json();
+                console.log('[CUSTOMER] Message sent successfully:', result);
+
                 updateConnectionStatus(true);
             } catch (error) {
-                console.error('Error sending message:', error);
+                console.error('[CUSTOMER] Error sending message:', error);
                 updateConnectionStatus(false);
             }
         }
