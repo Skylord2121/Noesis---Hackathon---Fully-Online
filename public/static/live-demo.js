@@ -238,6 +238,9 @@ let currentIndex = 0;
 let callActive = true;
 let callPaused = false; // Track if call is paused
 let conversationHistory = []; // Track full conversation for AI context
+let customerIssueFixed = false; // Once issue is identified, keep it fixed
+let statusUpdateCount = 0; // Limit status updates to max 4
+let aiRequestCount = 0; // Track AI requests to limit frequency
 
 // DOM elements
 const transcriptMessages = document.getElementById('transcript-messages');
@@ -254,6 +257,7 @@ const predictedCsat = document.getElementById('predicted-csat');
 const customerName = document.getElementById('customer-name');
 const customerInitials = document.getElementById('customer-initials');
 const customerTier = document.getElementById('customer-tier');
+const customerStatus = document.getElementById('customer-status');
 const customerIssue = document.getElementById('customer-issue');
 const customerTags = document.getElementById('customer-tags');
 const clarityLabel = document.getElementById('clarity-label');
@@ -326,12 +330,18 @@ function updateClarity(clarity) {
 }
 
 function updateMetrics(empathy) {
-    // Update quality score based on empathy (realistic range 60-92%)
-    const quality = Math.min(92, Math.max(60, Math.round(empathy * 8 + 20)));
+    // Update quality score based on empathy
+    // Low empathy (4.0-6.0): 65-78%
+    // Medium empathy (6.0-7.5): 78-85%
+    // High empathy (7.5-9.5): 85-92%
+    const quality = Math.min(92, Math.max(65, Math.round(empathy * 9 + 29)));
     qualityScore.textContent = `${quality}%`;
     
-    // Update predicted CSAT (realistic range 3.5-9.2)
-    const csat = Math.min(9.2, Math.max(3.5, (empathy * 0.85 + 1.5))).toFixed(1);
+    // Update predicted CSAT
+    // Low empathy (4.0-6.0): 5.0-7.0
+    // Medium empathy (6.0-7.5): 7.0-8.5
+    // High empathy (7.5-9.5): 8.5-9.5
+    const csat = Math.min(9.5, Math.max(5.0, (empathy * 0.95 + 1.2))).toFixed(1);
     predictedCsat.textContent = csat;
 }
 
@@ -584,16 +594,17 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "priority": 1-3\n`;
         context += `  },\n`;
         context += `  "metrics": {\n`;
-        context += `    "empathy": 3.0-9.5 (realistic decimal, avoid 10),\n`;
-        context += `    "sentiment": 0.0-1.0 (0=very upset, 0.5=neutral, 1.0=happy),\n`;
+        context += `    "empathy": 4.0-9.5 (use context: upset=4-6, neutral=6-7, positive=7.5-9.5),\n`;
+        context += `    "sentiment": 0.0-1.0 (0=very upset, 0.5=neutral, 0.9-1.0=very happy),\n`;
         context += `    "stress": "High|Medium|Low",\n`;
         context += `    "clarity": "Poor|Fair|Good",\n`;
-        context += `    "issue": "Brief issue (max 25 chars)",\n`;
-        context += `    "tags": ["Short Tag", "2-3 Words Max"] (max 4 tags about CUSTOMER only: account type, issue type, behavior - NOT agent performance)\n`;
+        context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved" (update progress max 4 times),\n`;
+        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue (max 25 chars)"'},\n`;
+        context += `    "tags": ["Max 4"] (ONLY customer identifiers: account tier, contact history, work situation - NEVER emotions like Happy/Frustrated/Neutral)\n`;
         context += `  }\n`;
         context += `}\n\n`;
-        context += `Examples of GOOD tags: "3rd Call", "Work From Home", "Premium Account", "Frustrated", "Technical Issue"\n`;
-        context += `Examples of BAD tags: "High CSAT", "Agent Performance", "Good Service" (these are about agent, not customer)\n`;
+        context += `GOOD tags: "Premium", "3rd Contact", "Work From Home", "Business Account", "VIP", "New Customer", "2+ Years"\n`;
+        context += `BAD tags: "Happy", "Frustrated", "Satisfied", "Technical Issue", "Neutral" (emotions/issues are tracked separately)\n`;
         context += `Return ONLY valid JSON, nothing else.`;
         
         // Call Ollama directly from browser
@@ -694,10 +705,23 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     updateClarity(metrics.clarity);
                 }
                 
-                // Update customer info (issue and tags)
+                // Update customer status (max 4 times)
+                if (metrics.status && statusUpdateCount < 4) {
+                    const validStatuses = ['Open', 'Investigating', 'Ongoing', 'Resolving', 'Resolved'];
+                    if (validStatuses.includes(metrics.status)) {
+                        customerStatus.textContent = metrics.status;
+                        customerStatus.className = 'font-semibold ' + 
+                            (metrics.status === 'Resolved' ? 'text-green-400' : 
+                             metrics.status === 'Open' ? 'text-red-400' : 'text-yellow-400');
+                        statusUpdateCount++;
+                    }
+                }
+                
+                // Update customer info (issue fixed once set, tags)
                 const customerInfo = {};
-                if (metrics.issue) {
-                    customerInfo.issue = metrics.issue.substring(0, 30);
+                if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED') {
+                    customerInfo.issue = metrics.issue.substring(0, 25);
+                    customerIssueFixed = true; // Lock it after first set
                 }
                 if (metrics.tags && Array.isArray(metrics.tags)) {
                     customerInfo.tags = metrics.tags.slice(0, 4);
@@ -809,11 +833,15 @@ function simulateCall() {
                 setTimeout(() => addCoachingCard(item.coaching, false), 800);
             }
             
-            // NEW: If customer (Laura) spoke, call AI for real-time analysis
+            // NEW: If customer (Laura) spoke, call AI for important messages only
             if (item.speaker === 'customer') {
-                setTimeout(() => {
-                    analyzeCustomerMessage(item.text, item.name, 'Maya');
-                }, 1500); // Delay slightly so AI response comes after mock coaching
+                // Only call AI for every 2nd customer message to reduce frequency
+                aiRequestCount++;
+                if (aiRequestCount % 2 === 1) { // 1st, 3rd, 5th customer messages
+                    setTimeout(() => {
+                        analyzeCustomerMessage(item.text, item.name, 'Maya');
+                    }, 1500); // Delay slightly so AI response comes after mock coaching
+                }
             }
             
             // Show typing for next agent response
