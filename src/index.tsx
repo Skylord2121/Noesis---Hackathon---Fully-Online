@@ -219,6 +219,110 @@ app.post('/api/analyze-message', async (c) => {
   }
 })
 
+// Session Management API Routes
+// Check if session exists
+app.get('/api/session/check', async (c) => {
+  try {
+    const sessionId = c.req.query('sessionId')
+    
+    if (!sessionId) {
+      return c.json({ success: false, error: 'Session ID required' }, 400)
+    }
+    
+    // For now, always return true (we'll use KV for production)
+    // In production, check if session exists in KV
+    return c.json({ success: true, exists: true })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Send message to session
+app.post('/api/session/message', async (c) => {
+  try {
+    const { sessionId, role, content, timestamp } = await c.req.json()
+    
+    if (!sessionId || !role || !content) {
+      return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+    
+    const message = {
+      role,
+      content,
+      timestamp: timestamp || Date.now()
+    }
+    
+    // Store in KV (for production)
+    // For MVP, we'll use in-memory storage via Workers Cache API
+    const cacheKey = new Request(`https://internal.cache/${sessionId}/messages`)
+    const cache = caches.default
+    
+    // Get existing messages
+    let messages = []
+    try {
+      const cachedResponse = await cache.match(cacheKey)
+      if (cachedResponse) {
+        const data = await cachedResponse.json()
+        messages = data.messages || []
+      }
+    } catch (e) {
+      console.log('No cached messages found')
+    }
+    
+    // Add new message
+    messages.push(message)
+    
+    // Store back in cache
+    const newResponse = new Response(JSON.stringify({ messages }), {
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'max-age=3600'
+      }
+    })
+    await cache.put(cacheKey, newResponse)
+    
+    return c.json({ success: true, message })
+  } catch (error) {
+    console.error('Error storing message:', error)
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Get messages from session
+app.get('/api/session/messages', async (c) => {
+  try {
+    const sessionId = c.req.query('sessionId')
+    const since = parseInt(c.req.query('since') || '0')
+    
+    if (!sessionId) {
+      return c.json({ success: false, error: 'Session ID required' }, 400)
+    }
+    
+    // Get messages from cache
+    const cacheKey = new Request(`https://internal.cache/${sessionId}/messages`)
+    const cache = caches.default
+    
+    let messages = []
+    try {
+      const cachedResponse = await cache.match(cacheKey)
+      if (cachedResponse) {
+        const data = await cachedResponse.json()
+        messages = data.messages || []
+      }
+    } catch (e) {
+      console.log('No cached messages found')
+    }
+    
+    // Filter messages newer than 'since' timestamp
+    const newMessages = messages.filter(msg => msg.timestamp > since)
+    
+    return c.json({ success: true, messages: newMessages })
+  } catch (error) {
+    console.error('Error fetching messages:', error)
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
 // Query Documents API - Search indexed company documents
 app.post('/api/query-docs', async (c) => {
   try {
@@ -264,9 +368,14 @@ app.post('/api/query-docs', async (c) => {
 // Serve static files
 app.use('/static/*', serveStatic({ root: './' }))
 
-// Redirect root to live demo (the only page we need)
+// Redirect root to agent dashboard
 app.get('/', (c) => {
-  return c.redirect('/static/live-demo')
+  return c.redirect('/static/agent.html')
+})
+
+// Keep old live-demo route for reference
+app.get('/demo', (c) => {
+  return c.redirect('/static/live-demo.html')
 })
 
 export default app

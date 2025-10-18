@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Open Company Documents</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 15px 30px;
+            font-size: 18px;
+            color: white;
+            background: #667eea;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .path {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-family: monospace;
+            color: #666;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 Open Company Documents</h1>
+        <a href="file:///C:/Users/Nimbus VFX/Desktop/Company Docs" class="button" onclick="openFolder(); return false;">
+            Open Folder
+        </a>
+        <div class="path">
+            C:\Users\Nimbus VFX\Desktop\Company Docs
+        </div>
+        <p style="color: #666; margin-top: 20px; font-size: 14px;">
+            Click the button above to open your company documents folder
+        </p>
+    </div>
+
+    <script>
+        function openFolder() {
+            // Try method 1: Direct file protocol
+            try {
+                window.location.href = 'file:///C:/Users/Nimbus VFX/Desktop/Company Docs';
+            } catch (e) {
+                // Try method 2: Open in new window
+                try {
+                    window.open('file:///C:/Users/Nimbus VFX/Desktop/Company Docs', '_blank');
+                } catch (e2) {
+                    // Method 3: Use Windows Explorer protocol
+                    try {
+                        window.location.href = 'explorer:///C:/Users/Nimbus VFX/Desktop/Company Docs';
+                    } catch (e3) {
+                        alert('Please open File Explorer and navigate to:\nC:\\Users\\Nimbus VFX\\Desktop\\Company Docs');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
