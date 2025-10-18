@@ -6,6 +6,17 @@
 
 **Tagline:** *"Empathy, in real time — for every conversation."*
 
+## 🤖 Ollama AI Integration
+
+**NEW: Real-time AI coaching powered by your local Ollama instance!**
+
+The dashboard now integrates with Ollama to provide live AI-generated coaching suggestions:
+- **Automatic analysis** - AI analyzes every customer message in real-time
+- **Contextual coaching** - Suggestions based on full conversation history
+- **Emotion detection** - Identifies customer emotions and recommends appropriate responses
+- **Configurable** - Use any Ollama model (default: qwen2.5:3b)
+- **Connection testing** - Built-in test to verify Ollama connectivity
+
 ## ✨ Key Features
 
 ### Core Functionality
@@ -78,7 +89,36 @@
 
 ## 🌐 Live Demo
 
-**Dashboard URL:** https://3000-i06fcpek5jlhyho4vufz5-b9b802c4.sandbox.novita.ai/static/dashboard.html
+**Dashboard URL:** https://3000-ib0z8zuo7krasmb055710-b237eb32.sandbox.novita.ai
+
+## ⚙️ Setup Instructions
+
+### 1. Configure Ollama (Required for AI Coaching)
+
+**On your local machine where Ollama is running:**
+
+```bash
+# Option 1: Allow external access (if Ollama is on different machine)
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+
+# Option 2: Use ngrok/cloudflare tunnel to expose localhost
+ngrok http 11434
+# Copy the public URL (e.g., https://xxxx.ngrok-free.app)
+```
+
+### 2. Configure Dashboard Settings
+
+1. Open the dashboard and click the **Settings icon** (⚙️) in the top right
+2. Enter your **Ollama Host URL**:
+   - Local: `http://localhost:11434` (if Ollama is on same machine)
+   - Remote: `http://YOUR_IP:11434` or `https://xxxx.ngrok-free.app`
+3. Enter your **Model Name**: `qwen2.5:3b` (or any installed model)
+4. Click **Test Connection** to verify
+5. Click **Save** to store settings
+
+### 3. Test AI Coaching
+
+Once connected, the AI will automatically analyze customer messages and provide coaching suggestions with an **AI** badge in the coaching panel.
 
 ## 📊 Data Architecture
 
@@ -129,6 +169,10 @@ Call Audio Stream → WebSocket → SER Engine → Emotion Analysis
 ✅ Live transcript with emotion tagging  
 ✅ Voice spectrum analyzer  
 ✅ AI coaching suggestion panel  
+✅ **Ollama AI integration for real-time coaching**  
+✅ **Settings panel with Ollama configuration**  
+✅ **Connection testing for Ollama**  
+✅ **AI-generated coaching based on conversation context**  
 ✅ Agent and customer profile cards  
 ✅ Call control buttons  
 ✅ Performance metrics display  
@@ -138,10 +182,9 @@ Call Audio Stream → WebSocket → SER Engine → Emotion Analysis
 
 ## 🔮 Features Not Yet Implemented
 
-🔲 Backend WebSocket integration  
-🔲 Real Speech Emotion Recognition engine  
-🔲 Live NLP-based suggestion generation  
-🔲 Database integration for historical data  
+🔲 Backend WebSocket integration for live audio streaming  
+🔲 Real Speech Emotion Recognition engine (audio → emotion)  
+🔲 Database integration for historical data (D1/KV)  
 🔲 User authentication system  
 🔲 Supervisor monitoring dashboard  
 🔲 CRM/Helpdesk integrations  
