@@ -181,6 +181,38 @@
             background: rgba(241, 245, 249, 0.95) !important;
         }
 
+        /* Light Mode - Nav Buttons */
+        body.light-mode .glass-panel button {
+            background: rgba(148, 163, 184, 0.15) !important;
+            border-color: rgba(148, 163, 184, 0.3) !important;
+        }
+
+        body.light-mode .glass-panel button:hover {
+            background: rgba(148, 163, 184, 0.25) !important;
+        }
+
+        body.light-mode .glass-panel button i {
+            color: #475569 !important;
+        }
+
+        body.light-mode .glass-panel button span {
+            color: #475569 !important;
+        }
+
+        /* Light Mode - Exit Button */
+        body.light-mode .glass-panel button:has(.fa-sign-out-alt) {
+            background: rgba(239, 68, 68, 0.1) !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
+        }
+
+        body.light-mode .glass-panel button:has(.fa-sign-out-alt):hover {
+            background: rgba(239, 68, 68, 0.15) !important;
+        }
+
+        body.light-mode .glass-panel button .text-red-400 {
+            color: #dc2626 !important;
+        }
+
         /* Mobile Responsive Design */
         @media (max-width: 768px) {
             html, body {
