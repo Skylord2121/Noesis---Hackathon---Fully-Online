@@ -47,10 +47,15 @@ function startNewSession() {
     const baseUrl = window.location.origin;
     customerLink = `${baseUrl}/static/customer.html?session=${currentSessionId}`;
     
+    console.log('[AGENT] Starting new session');
+    console.log('[AGENT] Session ID:', currentSessionId);
+    console.log('[AGENT] Customer Link:', customerLink);
+    
     // Show session info modal
     showSessionModal();
     
     // Start polling for customer messages
+    console.log('[AGENT] Starting message polling...');
     startPolling();
     
     // Update UI
@@ -65,6 +70,8 @@ function startNewSession() {
     // Start call timer
     callStartTime = Date.now();
     setInterval(updateCallTimer, 1000);
+    
+    console.log('[AGENT] Session initialized, polling every 1 second');
 }
 
 function showSessionModal() {
@@ -148,12 +155,18 @@ function closeSessionModal() {
 // Poll for new customer messages
 function startPolling() {
     if (pollInterval) {
+        console.log('[AGENT] Clearing existing poll interval');
         clearInterval(pollInterval);
     }
     
+    console.log('[AGENT] Setting up new poll interval (1 second)');
     pollInterval = setInterval(async () => {
         await fetchNewMessages();
     }, 1000); // Poll every second
+    
+    // Immediate first fetch
+    console.log('[AGENT] Doing immediate first fetch');
+    fetchNewMessages();
 }
 
 function stopPolling() {
@@ -165,35 +178,58 @@ function stopPolling() {
 
 // Fetch new messages from server
 async function fetchNewMessages() {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+        console.log('[AGENT] No session ID, skipping message fetch');
+        return;
+    }
     
     try {
+        console.log(`[AGENT] Polling for messages - Session: ${currentSessionId}, Since: ${lastMessageTimestamp}`);
         const response = await fetch(`/api/session/messages?sessionId=${currentSessionId}&since=${lastMessageTimestamp}`);
-        if (!response.ok) return;
+        
+        if (!response.ok) {
+            console.error('[AGENT] Failed to fetch messages:', response.status, response.statusText);
+            return;
+        }
         
         const data = await response.json();
+        console.log('[AGENT] Poll response:', data);
         
         if (data.messages && data.messages.length > 0) {
+            console.log(`[AGENT] Received ${data.messages.length} new message(s)`);
             for (const message of data.messages) {
+                console.log(`[AGENT] Processing message:`, message);
                 if (message.role === 'customer') {
+                    console.log('[AGENT] CUSTOMER MESSAGE:', message.content);
                     // Customer message received with voice metrics
                     await handleCustomerMessage(message.content, message.voiceMetrics);
                     lastMessageTimestamp = message.timestamp;
                     
                     if (!customerHasSpoken) {
                         customerHasSpoken = true;
+                        console.log('[AGENT] First customer message received!');
                     }
                 }
             }
+        } else {
+            // Only log occasionally to avoid spam
+            if (Math.random() < 0.1) {
+                console.log('[AGENT] No new messages');
+            }
         }
     } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('[AGENT] Error fetching messages:', error);
     }
 }
 
 // Handle incoming customer message with voice metrics
 async function handleCustomerMessage(text, voiceMetrics = null) {
+    console.log('[AGENT] handleCustomerMessage called');
+    console.log('[AGENT] Customer said:', text);
+    console.log('[AGENT] Voice metrics:', voiceMetrics);
+    
     // Add to transcript
+    console.log('[AGENT] Adding to transcript...');
     addTranscriptMessage('customer', text);
     
     // Add to conversation history with voice data
@@ -203,8 +239,10 @@ async function handleCustomerMessage(text, voiceMetrics = null) {
         timestamp: Date.now(),
         voiceMetrics: voiceMetrics
     });
+    console.log('[AGENT] Conversation history updated, total messages:', conversationHistory.length);
     
     // Animate spectrum bars when customer speaks
+    console.log('[AGENT] Animating customer spectrum...');
     animateCustomerSpectrum();
     
     // Process with AI for coaching and metrics (async)
