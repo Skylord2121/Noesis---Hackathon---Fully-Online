@@ -6,8 +6,8 @@ const conversation = [
         speaker: 'agent',
         name: 'Marcus',
         text: 'Thank you for calling TechEase Internet Support. My name is Marcus. How can I help you today?',
-        sentiment: 0.5,
-        empathy: 3.2,
+        sentiment: null,
+        empathy: null,
         stress: null,
         clarity: null,
         coaching: null
@@ -286,6 +286,7 @@ let customerHasSpoken = false; // Track if customer has spoken yet
 let liveMode = false; // Track if in live mode or demo mode
 let recognition = null; // Speech recognition instance
 let isListening = false; // Track if actively listening
+let ollamaConnected = false; // Track if Ollama is connected and ready
 
 // DOM elements
 const transcriptMessages = document.getElementById('transcript-messages');
@@ -863,35 +864,28 @@ function simulateCall() {
                 updateCustomerInfo(item.customerInfo);
             }
             
-            // Update sentiment and empathy (only after customer speaks)
+            // Update sentiment and empathy (ONLY from AI, not hardcoded values)
             if (item.speaker === 'customer') {
                 customerHasSpoken = true;
             }
             
-            if (customerHasSpoken) {
-                updateSentimentUI(item.sentiment);
-                updateEmpathyScore(item.empathy);
-                updateStressLevel(item.stress);
-                updateClarity(item.clarity);
-                updateMetrics(item.empathy);
-            }
+            // Don't use hardcoded sentiment/empathy values - wait for AI
+            // These will be updated by the AI analysis function
             
             // Add coaching if present (original mock coaching)
             if (item.coaching) {
                 setTimeout(() => addCoachingCard(item.coaching, false), 800);
             }
             
-            // NEW: If customer spoke, call AI for important messages only
-            if (item.speaker === 'customer') {
-                // Only call AI for every 2nd customer message to reduce frequency
-                aiRequestCount++;
-                if (aiRequestCount % 2 === 1) { // 1st, 3rd, 5th customer messages
-                    // Get agent name from conversation (first agent message)
-                    const agentName = conversation.find(msg => msg.speaker === 'agent')?.name || 'Agent';
-                    setTimeout(() => {
-                        analyzeCustomerMessage(item.text, item.name, agentName);
-                    }, 1500); // Delay slightly so AI response comes after mock coaching
-                }
+            // NEW: If customer spoke, call AI to get ALL metrics
+            if (item.speaker === 'customer' && ollamaConnected) {
+                // Call AI for EVERY customer message to get accurate metrics
+                // Get agent name from conversation (first agent message)
+                const agentName = conversation.find(msg => msg.speaker === 'agent')?.name || 'Agent';
+                
+                setTimeout(() => {
+                    analyzeCustomerMessage(item.text, item.name, agentName);
+                }, 800); // Call AI to get real metrics
             }
             
             // Show typing for next agent response
@@ -1104,8 +1098,59 @@ function toggleMode() {
     }
 }
 
+// Check Ollama connection on startup
+async function checkOllamaConnection() {
+    const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
+    const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
+    
+    try {
+        const response = await fetch(`${ollamaUrl}/api/tags`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(5000)
+        });
+        
+        if (!response.ok) {
+            return false;
+        }
+        
+        const data = await response.json();
+        const availableModels = data.models?.map(m => m.name) || [];
+        const modelExists = availableModels.some(m => m === model || m.includes(model.split(':')[0]));
+        
+        return modelExists;
+    } catch (error) {
+        console.error('Ollama connection check failed:', error);
+        return false;
+    }
+}
+
+// Show connection warning
+function showConnectionWarning() {
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'ollama-warning';
+    warningDiv.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 z-50';
+    warningDiv.innerHTML = `
+        <div class="bg-red-500/90 backdrop-blur-sm text-white px-6 py-4 rounded-lg shadow-lg border border-red-400 max-w-md">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-exclamation-triangle text-2xl"></i>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1">Ollama Not Connected</h3>
+                    <p class="text-sm mb-3">The dashboard requires Ollama to analyze conversations. Please configure and test your connection in Settings.</p>
+                    <button onclick="openSettings()" class="px-4 py-2 bg-white text-red-600 rounded font-semibold text-sm hover:bg-gray-100 transition">
+                        <i class="fas fa-cog mr-2"></i>Open Settings
+                    </button>
+                </div>
+                <button onclick="document.getElementById('ollama-warning').remove()" class="text-white hover:text-red-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(warningDiv);
+}
+
 // Start simulation on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Initialize metrics
     qualityScore.textContent = '--';
     predictedCsat.textContent = '--';
@@ -1121,10 +1166,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize speech recognition (but don't start)
     initSpeechRecognition();
     
-    // Start demo after a brief delay
-    setTimeout(() => {
-        simulateCall();
-    }, 1000);
+    // Check Ollama connection before starting
+    console.log('Checking Ollama connection...');
+    ollamaConnected = await checkOllamaConnection();
+    
+    if (ollamaConnected) {
+        console.log('Ollama connected! Starting demo...');
+        // Start demo after a brief delay
+        setTimeout(() => {
+            simulateCall();
+        }, 1000);
+    } else {
+        console.warn('Ollama not connected. Demo will not start.');
+        showConnectionWarning();
+        // Don't start demo - wait for user to configure Ollama
+    }
 });
 
 // Settings Modal Functions
@@ -1144,7 +1200,7 @@ function closeSettings() {
     document.getElementById('settings-modal').classList.add('hidden');
 }
 
-function saveSettings() {
+async function saveSettings() {
     const host = document.getElementById('ollama-host').value.trim();
     const model = document.getElementById('ollama-model').value.trim();
     
@@ -1161,11 +1217,26 @@ function saveSettings() {
     localStorage.setItem('ollama-host', host);
     localStorage.setItem('ollama-model', model);
     
-    showToast('Settings saved successfully!', 'success');
+    showToast('Settings saved! Testing connection...', 'success');
     
-    setTimeout(() => {
-        closeSettings();
-    }, 1000);
+    // Test connection after saving
+    ollamaConnected = await checkOllamaConnection();
+    
+    if (ollamaConnected) {
+        showToast('Connection verified! Dashboard ready.', 'success');
+        setTimeout(() => {
+            closeSettings();
+            // Start demo if not running
+            if (!callActive && !liveMode) {
+                setTimeout(() => {
+                    callActive = true;
+                    simulateCall();
+                }, 500);
+            }
+        }, 1500);
+    } else {
+        showToast('Settings saved, but connection failed. Check settings.', 'error');
+    }
 }
 
 async function testOllamaConnection() {
@@ -1239,6 +1310,8 @@ async function testOllamaConnection() {
         }
         
         // Success!
+        ollamaConnected = true; // Set global flag
+        
         statusDiv.className = 'p-3 rounded-lg text-sm bg-green-500/10 border border-green-500/30';
         statusDiv.innerHTML = `
             <div class="flex items-start gap-2">
@@ -1248,10 +1321,23 @@ async function testOllamaConnection() {
                     <p class="text-gray-400 text-xs mt-1">Model: ${model}</p>
                     <p class="text-gray-400 text-xs mt-1">Response: ${data.response?.substring(0, 30)}...</p>
                     <p class="text-gray-400 text-xs mt-1">Available: ${availableModels.slice(0, 3).join(', ')}</p>
+                    <p class="text-cyan-400 text-xs mt-2 font-semibold"><i class="fas fa-info-circle mr-1"></i>You can now start the demo or go live!</p>
                 </div>
             </div>
         `;
         showToast('Connection successful!', 'success');
+        
+        // Remove warning if it exists
+        const warning = document.getElementById('ollama-warning');
+        if (warning) warning.remove();
+        
+        // Start demo if not already started
+        if (!callActive && !liveMode) {
+            setTimeout(() => {
+                callActive = true;
+                simulateCall();
+            }, 1000);
+        }
     } catch (error) {
         statusDiv.className = 'p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30';
         statusDiv.innerHTML = `
