@@ -501,43 +501,34 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             context += `🔔 CUSTOMER NAME DETECTED: "${detectedName}" - Set customer_name to this!\n\n`;
         }
         
-        // Extract issue keywords
-        let detectedIssue = null;
+        // Extract issue keywords - STORE FOR FALLBACK
+        window.jsDetectedIssue = null;
         const issueKeywords = {
-            'package': ['package not arrived', 'package missing', 'package delayed', 'where is my package'],
-            'bag': ['bag missing', 'bag lost', 'bag not arrived'],
-            'order': ['order not received', 'order missing', 'order cancelled'],
-            'refund': ['refund not processed', 'refund missing', 'need refund'],
-            'wrong': ['wrong item', 'incorrect item', 'wrong product'],
-            'damaged': ['damaged item', 'broken product', 'damaged package'],
-            'delivery': ['delivery delayed', 'delivery issue', 'not delivered'],
-            'tracking': ['tracking not working', 'cant track', 'tracking issue'],
-            'charged': ['charged twice', 'double charged', 'wrong charge'],
-            'account': ['account locked', 'cant login', 'account access']
+            'package': true, 'bag': true, 'order': true, 'refund': true, 'wrong': true,
+            'damaged': true, 'delivery': true, 'tracking': true, 'charged': true, 'account': true
         };
         
-        for (const [keyword, phrases] of Object.entries(issueKeywords)) {
+        for (const keyword of Object.keys(issueKeywords)) {
             if (lowerMsg.includes(keyword)) {
-                // Found a keyword, try to extract specific issue
-                if (lowerMsg.includes('missing')) {
-                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' missing';
+                if (lowerMsg.includes('missing') || lowerMsg.includes('lost')) {
+                    window.jsDetectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' missing';
                 } else if (lowerMsg.includes('delayed') || lowerMsg.includes('late')) {
-                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' delayed';
+                    window.jsDetectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' delayed';
                 } else if (lowerMsg.includes('wrong') || lowerMsg.includes('incorrect')) {
-                    detectedIssue = 'Wrong ' + keyword;
+                    window.jsDetectedIssue = 'Wrong ' + keyword;
                 } else if (lowerMsg.includes('damaged') || lowerMsg.includes('broken')) {
-                    detectedIssue = 'Damaged ' + keyword;
+                    window.jsDetectedIssue = 'Damaged ' + keyword;
                 } else if (lowerMsg.includes('not arrived') || lowerMsg.includes('not received')) {
-                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' not arrived';
+                    window.jsDetectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' not arrived';
                 } else {
-                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' issue';
+                    window.jsDetectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' issue';
                 }
                 break;
             }
         }
         
-        if (detectedIssue && !customerIssueFixed) {
-            context += `🚨 ISSUE DETECTED: "${detectedIssue}" - Set issue to exactly this!\n\n`;
+        if (window.jsDetectedIssue && !customerIssueFixed) {
+            context += `🚨 CRITICAL: ISSUE="${window.jsDetectedIssue}" - YOU MUST SET issue TO EXACTLY THIS VALUE!\n\n`;
         }
         
         context += `Return ONLY this EXACT JSON format:\n`;
@@ -663,13 +654,28 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             
             let coaching;
             if (aiAnalysis && aiAnalysis.coaching) {
-                coaching = {
-                    type: aiAnalysis.coaching.type || 'empathy',
-                    title: (aiAnalysis.coaching.title || 'AI Suggestion').substring(0, 40),
-                    message: (aiAnalysis.coaching.message || 'Consider the customer\'s emotional state').substring(0, 120),
-                    phrase: aiAnalysis.coaching.phrase ? aiAnalysis.coaching.phrase.substring(0, 80) : null,
-                    priority: aiAnalysis.coaching.priority || 2
-                };
+                // Validate that coaching fields don't contain template text
+                const title = aiAnalysis.coaching.title || 'AI Suggestion';
+                const message = aiAnalysis.coaching.message || '';
+                
+                // Check if message contains template placeholders
+                const isTemplate = message.includes('max 120') || 
+                                 message.includes('max 40') ||
+                                 message.includes('Brief') ||
+                                 message.includes('Short advice') ||
+                                 message.length < 10;
+                
+                if (!isTemplate && message.trim().length > 0) {
+                    coaching = {
+                        type: aiAnalysis.coaching.type || 'empathy',
+                        title: title.substring(0, 40),
+                        message: message.substring(0, 120),
+                        phrase: aiAnalysis.coaching.phrase ? aiAnalysis.coaching.phrase.substring(0, 80) : null,
+                        priority: aiAnalysis.coaching.priority || 2
+                    };
+                } else {
+                    coaching = null; // Skip if template text detected
+                }
             } else {
                 // Fallback - show plain text but clean it up
                 const cleanText = responseText
@@ -705,6 +711,34 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     name: metrics.customer_name,
                     issue: metrics.issue
                 });
+                
+                // VALIDATE: Check if AI scores match detected emotion
+                const msg = customerMessage.toLowerCase();
+                let needsOverride = false;
+                let overrideValues = {};
+                
+                if ((msg.includes('happy') || msg.includes('great')) && metrics.empathy < 7) {
+                    needsOverride = true;
+                    overrideValues = { empathy: 8.5, sentiment: 0.85, quality: 85, csat: 8.5, stress: 'Low' };
+                    console.warn('⚠️ AI returned low scores for happy customer - OVERRIDING');
+                } else if ((msg.includes('angry') || msg.includes('furious')) && metrics.empathy > 3) {
+                    needsOverride = true;
+                    overrideValues = { empathy: 1.5, sentiment: 0.1, quality: 15, csat: 1.5, stress: 'High' };
+                    console.warn('⚠️ AI returned high scores for angry customer - OVERRIDING');
+                } else if (msg.includes('frustrated') && (metrics.empathy > 5 || metrics.empathy < 2)) {
+                    needsOverride = true;
+                    overrideValues = { empathy: 3.0, sentiment: 0.3, quality: 35, csat: 3.5, stress: 'High' };
+                    console.warn('⚠️ AI scores wrong for frustrated customer - OVERRIDING');
+                }
+                
+                if (needsOverride) {
+                    metrics.empathy = overrideValues.empathy;
+                    metrics.sentiment = overrideValues.sentiment;
+                    metrics.quality = overrideValues.quality;
+                    metrics.predicted_csat = overrideValues.csat;
+                    metrics.stress = overrideValues.stress;
+                    console.log('✅ OVERRIDDEN METRICS:', metrics);
+                }
                 
                 if (typeof metrics.empathy === 'number') {
                     updateEmpathyScore(Math.max(0, Math.min(10, metrics.empathy)));
@@ -753,8 +787,12 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 
                 const customerInfo = {};
                 
-                // NAME: Extract customer name if provided
-                if (metrics.customer_name && typeof metrics.customer_name === 'string') {
+                // NAME: Use JavaScript-detected name if AI failed
+                if (detectedName) {
+                    customerInfo.name = detectedName;
+                    const nameParts = detectedName.split(' ');
+                    customerInfo.initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').substring(0, 2);
+                } else if (metrics.customer_name && typeof metrics.customer_name === 'string') {
                     const name = metrics.customer_name.trim();
                     if (name.length > 0 && name.length < 30) {
                         customerInfo.name = name;
@@ -763,13 +801,28 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     }
                 }
                 
-                // ISSUE: Only set once when customer describes actual problem (not emotion)
-                if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null && metrics.issue !== 'null') {
-                    const emotionWords = ['angry', 'frustrated', 'upset', 'happy', 'satisfied', 'annoyed', 'mad', 'furious'];
-                    const isEmotion = emotionWords.some(word => metrics.issue.toLowerCase().includes(word));
+                // ISSUE: Use JavaScript-detected issue if AI failed or returned invalid
+                if (!customerIssueFixed) {
+                    let issueToSet = null;
                     
-                    if (!isEmotion) {
-                        customerInfo.issue = metrics.issue.substring(0, 30);
+                    // Priority 1: JavaScript detection
+                    if (window.jsDetectedIssue) {
+                        issueToSet = window.jsDetectedIssue;
+                        console.log('✅ Using JS-detected issue:', issueToSet);
+                    }
+                    // Priority 2: AI response (if valid)
+                    else if (metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null && metrics.issue !== 'null') {
+                        const emotionWords = ['angry', 'frustrated', 'upset', 'happy', 'satisfied', 'annoyed', 'mad', 'furious'];
+                        const isEmotion = emotionWords.some(word => metrics.issue.toLowerCase().includes(word));
+                        
+                        if (!isEmotion) {
+                            issueToSet = metrics.issue.substring(0, 30);
+                            console.log('✅ Using AI-detected issue:', issueToSet);
+                        }
+                    }
+                    
+                    if (issueToSet) {
+                        customerInfo.issue = issueToSet;
                         customerIssueFixed = true;
                     }
                 }
