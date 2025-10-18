@@ -448,11 +448,58 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             context += `${msg.speaker === 'agent' ? agentName : customerName}: ${msg.text}\n`;
         });
         
-        context += `\n🔴 CUSTOMER JUST SAID: "${customerMessage}"\n\n`;
-        context += `🎯 YOUR TASK: Read what the customer ACTUALLY said above. Match your scores to their EXACT WORDS.\n\n`;
-        context += `If customer says "I'm happy" or "I'm in a great mood" → HIGH scores (empathy 8-9, quality 80-90)\n`;
-        context += `If customer says "I'm angry" or "I'm frustrated" → LOW scores (empathy 1-2, quality 10-20)\n`;
-        context += `If customer says "I'm okay" or neutral → MEDIUM scores (empathy 5-6, quality 60-70)\n\n`;
+        context += `\n🚨 CUSTOMER JUST SAID: "${customerMessage}"\n\n`;
+        context += `🎯 ANALYZE THE MESSAGE ABOVE:\n`;
+        
+        // Simple keyword detection to guide AI
+        const lowerMsg = customerMessage.toLowerCase();
+        if (lowerMsg.includes('happy') || lowerMsg.includes('great') || lowerMsg.includes('good') || lowerMsg.includes('satisfied')) {
+            context += `⚠️ CUSTOMER SAID THEY ARE HAPPY! Use HIGH scores:\n`;
+            context += `- empathy: 8.0-9.5\n`;
+            context += `- sentiment: 0.75-0.95\n`;
+            context += `- stress: "Low"\n`;
+            context += `- clarity: "Good"\n`;
+            context += `- quality: 75-90\n`;
+            context += `- predicted_csat: 7.5-9.5\n\n`;
+        } else if (lowerMsg.includes('angry') || lowerMsg.includes('mad') || lowerMsg.includes('furious') || lowerMsg.includes('pissed')) {
+            context += `⚠️ CUSTOMER SAID THEY ARE ANGRY! Use LOW scores:\n`;
+            context += `- empathy: 1.0-2.0\n`;
+            context += `- sentiment: 0.0-0.15\n`;
+            context += `- stress: "High"\n`;
+            context += `- clarity: "Poor"\n`;
+            context += `- quality: 10-25\n`;
+            context += `- predicted_csat: 0.5-2.0\n\n`;
+        } else if (lowerMsg.includes('frustrated') || lowerMsg.includes('annoyed') || lowerMsg.includes('upset')) {
+            context += `⚠️ CUSTOMER SAID THEY ARE FRUSTRATED! Use MEDIUM-LOW scores:\n`;
+            context += `- empathy: 2.5-4.0\n`;
+            context += `- sentiment: 0.2-0.4\n`;
+            context += `- stress: "High"\n`;
+            context += `- clarity: "Fair"\n`;
+            context += `- quality: 25-45\n`;
+            context += `- predicted_csat: 2.5-4.0\n\n`;
+        } else {
+            context += `Customer seems neutral. Use MEDIUM scores:\n`;
+            context += `- empathy: 5.0-6.0\n`;
+            context += `- sentiment: 0.45-0.60\n`;
+            context += `- stress: "Medium"\n`;
+            context += `- clarity: "Fair"\n`;
+            context += `- quality: 50-70\n`;
+            context += `- predicted_csat: 5.0-6.5\n\n`;
+        }
+        
+        // Extract name if present
+        const namePatterns = [/my name is (\w+)/i, /i'm (\w+)/i, /this is (\w+)/i, /i am (\w+)/i];
+        let detectedName = null;
+        for (const pattern of namePatterns) {
+            const match = customerMessage.match(pattern);
+            if (match && match[1] && match[1].length > 1) {
+                detectedName = match[1];
+                break;
+            }
+        }
+        if (detectedName) {
+            context += `🔔 CUSTOMER NAME DETECTED: "${detectedName}" - Set customer_name to this!\n\n`;
+        }
         
         context += `Return ONLY this EXACT JSON format:\n`;
         context += `{\n`;
@@ -545,6 +592,9 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         const loading = document.getElementById('ai-loading');
         if (loading) loading.remove();
         
+        // DEBUG: Log AI response to see what's actually being returned
+        console.log('🔍 AI RAW RESPONSE:', data.response);
+        
         let aiAnalysis;
         try {
             const responseText = data.response.trim();
@@ -605,6 +655,17 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             
             if (aiAnalysis && aiAnalysis.metrics) {
                 const metrics = aiAnalysis.metrics;
+                
+                // DEBUG: Log parsed metrics
+                console.log('📊 PARSED METRICS:', {
+                    empathy: metrics.empathy,
+                    sentiment: metrics.sentiment,
+                    stress: metrics.stress,
+                    quality: metrics.quality,
+                    csat: metrics.predicted_csat,
+                    name: metrics.customer_name,
+                    issue: metrics.issue
+                });
                 
                 if (typeof metrics.empathy === 'number') {
                     updateEmpathyScore(Math.max(0, Math.min(10, metrics.empathy)));
