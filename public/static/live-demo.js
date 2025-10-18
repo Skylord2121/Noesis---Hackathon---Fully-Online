@@ -795,42 +795,41 @@ async function getOllamaCoaching(context) {
     console.log('Context:', context);
     
     try {
-        const prompt = `You are an AI coaching assistant for call center agents. Analyze this conversation and provide ONE brief coaching suggestion.
+        const prompt = `Analyze this call center conversation and provide ONE coaching tip in JSON format.
 
-Context:
+Conversation:
 ${context}
 
-IMPORTANT: Respond ONLY with valid JSON. No other text.
+Return ONLY this JSON (no extra text):
+{"type":"empathy","title":"Short title","message":"Brief coaching tip","phrase":"Suggested agent response"}
 
-Required format:
-{
-  "type": "empathy",
-  "title": "Acknowledge Feelings",
-  "message": "Customer is frustrated. Show understanding before problem-solving.",
-  "phrase": "I completely understand your frustration with this issue."
-}
-
-Type options: empathy, de-escalation, action, transparency, resolution
-Keep title under 20 chars, message under 100 chars, phrase under 80 chars.
-
-JSON response:`;
+Type must be one of: empathy, de-escalation, action, transparency, resolution
+JSON:`;
 
         console.log('Calling Ollama API:', ollamaUrl, 'Model:', ollamaModel);
 
-        // Call Ollama directly from browser
+        // Call Ollama directly from browser with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
+        
         const response = await fetch(`${ollamaUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
             body: JSON.stringify({
                 model: ollamaModel,
                 prompt: prompt,
                 stream: false,
                 options: {
                     temperature: 0.7,
-                    num_predict: 200
+                    num_predict: 50,  // Reduced from 200 to make it faster
+                    top_k: 10,
+                    top_p: 0.9
                 }
             })
         });
+        
+        clearTimeout(timeoutId);
         
         console.log('Ollama response status:', response.status);
         
@@ -871,7 +870,11 @@ JSON response:`;
             };
         }
     } catch (error) {
-        console.error('❌ Ollama error:', error);
+        if (error.name === 'AbortError') {
+            console.error('❌ Ollama timeout: Request took too long (>3 minutes)');
+        } else {
+            console.error('❌ Ollama error:', error);
+        }
         return null;
     }
 }
