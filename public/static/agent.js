@@ -528,8 +528,15 @@ function stopAgentSpeaking() {
 
 // Add message to transcript
 function addTranscriptMessage(role, text) {
+    console.log('[AGENT] addTranscriptMessage called - Role:', role, 'Text:', text);
+    
     const transcriptMessages = document.getElementById('transcript-messages');
-    if (!transcriptMessages) return;
+    if (!transcriptMessages) {
+        console.error('[AGENT] ERROR: transcript-messages element not found!');
+        return;
+    }
+    
+    console.log('[AGENT] Found transcript container, creating message...');
     
     const messageDiv = document.createElement('div');
     messageDiv.className = 'transcript-line flex items-start gap-3 py-2';
@@ -551,11 +558,15 @@ function addTranscriptMessage(role, text) {
     `;
     
     transcriptMessages.appendChild(messageDiv);
+    console.log('[AGENT] Message appended to transcript, total messages:', transcriptMessages.children.length);
     
     // Auto-scroll to bottom
     const container = document.getElementById('transcript-container');
     if (container) {
         container.scrollTop = container.scrollHeight;
+        console.log('[AGENT] Scrolled transcript to bottom');
+    } else {
+        console.warn('[AGENT] transcript-container not found for scrolling');
     }
 }
 

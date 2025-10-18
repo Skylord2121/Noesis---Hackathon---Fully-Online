@@ -228,61 +228,175 @@ Respond ONLY with valid JSON (no markdown, no explanation):
       else if (lowerText.includes('product') || lowerText.includes('item') || lowerText.includes('order')) issue = 'Order Inquiry'
       
       // Analyze sentiment from voice metrics and keywords
-      let sentiment = 0.5
+      // START NEUTRAL - scores should reflect actual performance
+      let sentiment = 0.5  // Neutral starting point
       let stress = 'Medium'
-      let empathy = 7.0
-      let quality = 7.0
-      let predictedCSAT = 7.0
+      let empathy = 5.0    // Neutral empathy (5/10 scale)
+      let quality = 5.0    // Neutral quality (5/10 scale)
+      let predictedCSAT = 5.0  // Neutral CSAT (5/10 scale)
       
       if (voiceMetrics) {
         // High volume + high pitch + fast speech = stressed/upset
         if (voiceMetrics.volume > 60 && voiceMetrics.pitch > 230) {
-          sentiment = 0.3
+          sentiment = 0.2
           stress = 'High'
+          empathy = 3.0
+          quality = 4.0
+          predictedCSAT = 3.5
+        } else if (voiceMetrics.volume > 50 && voiceMetrics.pitch > 200) {
+          // Moderately stressed
+          sentiment = 0.35
+          stress = 'Medium-High'
           empathy = 4.0
-          quality = 5.0
-          predictedCSAT = 4.0
-        } else if (voiceMetrics.volume < 40 && voiceMetrics.energy < 40) {
-          // Low volume + low energy = calm or sad
-          sentiment = 0.6
+          quality = 4.5
+          predictedCSAT = 4.5
+        } else if (voiceMetrics.volume < 35 && voiceMetrics.energy < 35) {
+          // Low volume + low energy = calm or satisfied
+          sentiment = 0.65
           stress = 'Low'
-          empathy = 8.0
-          quality = 8.0
-          predictedCSAT = 8.0
+          empathy = 6.5
+          quality = 6.5
+          predictedCSAT = 7.0
+        } else if (voiceMetrics.volume < 45 && voiceMetrics.energy < 50) {
+          // Slightly calm
+          sentiment = 0.55
+          stress = 'Low-Medium'
+          empathy = 5.5
+          quality = 5.5
+          predictedCSAT = 6.0
         }
       }
       
-      // Adjust based on keywords
-      const negativeWords = ['angry', 'upset', 'frustrated', 'disappointed', 'terrible', 'worst', 'horrible']
-      const positiveWords = ['thank', 'appreciate', 'great', 'excellent', 'happy', 'satisfied']
+      // Enhanced sentiment detection - be VERY sensitive to negative language
       
-      if (negativeWords.some(word => lowerText.includes(word))) {
-        sentiment = Math.max(0.2, sentiment - 0.2)
+      // Strong negative indicators (severe dissatisfaction)
+      const strongNegative = [
+        'don\'t trust', 'don\'t believe', 'not doing a good job', 'doing a terrible job',
+        'horrible', 'worst', 'terrible', 'awful', 'pathetic', 'useless',
+        'unacceptable', 'ridiculous', 'disgrace', 'incompetent', 'nightmare',
+        'scam', 'fraud', 'lie', 'lying', 'liar',
+        'waste of time', 'waste of money', 'rip off', 'ripoff',
+        'never again', 'disgusted', 'appalled', 'outraged'
+      ]
+      
+      // Moderate negative indicators (frustration/disappointment)
+      const moderateNegative = [
+        'angry', 'upset', 'frustrated', 'disappointed', 'annoyed', 'irritated',
+        'unhappy', 'dissatisfied', 'unsatisfied', 'not happy', 'not satisfied',
+        'problem', 'issue', 'broken', 'doesn\'t work', 'not working', 'failed',
+        'wrong', 'mistake', 'error', 'bad', 'poor', 'unfair',
+        'waited too long', 'still waiting', 'no response', 'no help', 'not helpful'
+      ]
+      
+      // Distrust/doubt indicators (lack of confidence)
+      const distrustIndicators = [
+        'honestly', 'frankly', 'to be honest', 'let\'s be real', 'seriously',
+        'doubt', 'questionable', 'suspicious', 'concerned', 'worried'
+      ]
+      
+      // Genuine positive indicators (must show actual satisfaction/praise)
+      const genuinePositive = [
+        'great job', 'excellent service', 'amazing', 'wonderful experience',
+        'very happy', 'very satisfied', 'so helpful', 'really appreciate',
+        'love it', 'fantastic', 'awesome', 'brilliant', 'outstanding',
+        'impressed', 'superb', 'exceeded', 'better than expected'
+      ]
+      
+      // Transactional/polite phrases (NOT indicators of happiness)
+      const transactionalPolite = [
+        'okay thank', 'ok thank', 'sure thank', 'alright thank',
+        'my order number', 'here is', 'it is', 'that is',
+        'yes thank', 'yeah thank'
+      ]
+      
+      // Check for strong negative sentiment
+      let negativeScore = 0
+      let hasDistrust = false
+      let isTransactional = false
+      
+      // Check if this is just transactional politeness
+      if (transactionalPolite.some(phrase => lowerText.includes(phrase))) {
+        isTransactional = true
+        // Keep neutral - customer is just being polite, not expressing satisfaction
+      }
+      
+      if (strongNegative.some(phrase => lowerText.includes(phrase))) {
+        negativeScore = 3  // Severe
+        sentiment = 0.1
         stress = 'High'
-        empathy = Math.max(3.0, empathy - 2)
-        predictedCSAT = Math.max(3.0, predictedCSAT - 2)
-      } else if (positiveWords.some(word => lowerText.includes(word))) {
-        sentiment = Math.min(0.9, sentiment + 0.2)
+        empathy = 2.0
+        quality = 2.5
+        predictedCSAT = 2.0
+      } else if (moderateNegative.some(phrase => lowerText.includes(phrase))) {
+        negativeScore = 2  // Moderate
+        sentiment = Math.max(0.25, sentiment - 0.3)
+        stress = 'High'
+        empathy = Math.max(3.0, empathy - 2.5)
+        quality = Math.max(3.5, quality - 2.0)
+        predictedCSAT = Math.max(3.5, predictedCSAT - 2.5)
+      }
+      
+      // Check for distrust language (often precedes complaints)
+      if (distrustIndicators.some(phrase => lowerText.includes(phrase))) {
+        hasDistrust = true
+        // If there's distrust language, assume negative unless proven otherwise
+        if (negativeScore === 0) {
+          negativeScore = 1
+          sentiment = Math.max(0.3, sentiment - 0.25)
+          stress = 'Medium-High'
+          empathy = Math.max(3.5, empathy - 1.5)
+          quality = Math.max(4.0, quality - 1.5)
+          predictedCSAT = Math.max(4.0, predictedCSAT - 1.5)
+        }
+      }
+      
+      // Check for GENUINE positive sentiment (only if not negative or transactional)
+      if (negativeScore === 0 && !isTransactional && genuinePositive.some(phrase => lowerText.includes(phrase))) {
+        sentiment = Math.min(0.85, sentiment + 0.25)
         stress = 'Low'
-        empathy = Math.min(9.0, empathy + 1)
-        predictedCSAT = Math.min(9.0, predictedCSAT + 1)
+        empathy = Math.min(9.0, empathy + 2.5)
+        quality = Math.min(9.0, quality + 2.0)
+        predictedCSAT = Math.min(9.0, predictedCSAT + 2.5)
+      }
+      
+      // If transactional, stay neutral (don't boost scores)
+      if (isTransactional && negativeScore === 0) {
+        // Keep default neutral scores - customer is just being polite
+        sentiment = 0.5
+        stress = 'Medium'
+        empathy = 5.0
+        quality = 5.0
+        predictedCSAT = 5.0
       }
       
       // Generate contextual coaching
       const coaching = []
       
-      // Empathy coaching based on stress
-      if (stress === 'High') {
+      // Empathy coaching based on stress and sentiment
+      if (negativeScore === 3) {
+        // Severe negative sentiment
+        coaching.push({
+          type: 'critical',
+          title: '⚠️ CRITICAL: Customer Very Upset',
+          message: 'Customer shows distrust and severe dissatisfaction. IMMEDIATE ACTION: 1) Acknowledge their frustration, 2) Take ownership, 3) Escalate if needed.'
+        })
+      } else if (negativeScore === 2 || stress === 'High') {
         coaching.push({
           type: 'empathy',
           title: 'De-escalate First',
-          message: 'Customer is stressed. Start with: "I understand how frustrating this must be. Let me help you right away."'
+          message: 'Customer is frustrated/stressed. Start with: "I understand how frustrating this must be. Let me help you right away."'
+        })
+      } else if (hasDistrust) {
+        coaching.push({
+          type: 'trust',
+          title: 'Rebuild Trust',
+          message: 'Customer expressing doubt/distrust. Be transparent, specific, and follow through on promises. Avoid vague assurances.'
         })
       } else {
         coaching.push({
           type: 'empathy',
-          title: 'Warm Greeting',
-          message: 'Great tone! Maintain friendly rapport while resolving their concern.'
+          title: 'Maintain Rapport',
+          message: 'Good tone. Keep conversation professional and focused on resolution.'
         })
       }
       

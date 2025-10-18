@@ -1,0 +1,345 @@
+#!/bin/bash
+case $GIT_COMMIT in
+    aa18162468b9556eab28879ae94ef3d067d5da1c)
+        export GIT_AUTHOR_DATE="2025-10-18 09:50:00 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 09:50:00 +0000"
+        ;;
+    1d98a91f58c94d96ef46cb465fc0fc47d20a010e)
+        export GIT_AUTHOR_DATE="2025-10-18 09:56:32 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 09:56:32 +0000"
+        ;;
+    5d21247bdad08f5f3dbef1b765f7fb473522ce33)
+        export GIT_AUTHOR_DATE="2025-10-18 10:03:05 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:03:05 +0000"
+        ;;
+    5e309e7a54ca47df7aa1561e8ca5e32ac402d0d0)
+        export GIT_AUTHOR_DATE="2025-10-18 10:09:38 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:09:38 +0000"
+        ;;
+    46357898d4dc880a1c197348d12000c4e24bbd7c)
+        export GIT_AUTHOR_DATE="2025-10-18 10:16:11 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:16:11 +0000"
+        ;;
+    30666456fc6c7dc93ca04a44bd67525af71620e1)
+        export GIT_AUTHOR_DATE="2025-10-18 10:22:44 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:22:44 +0000"
+        ;;
+    4bfafd1438a5247ef3c9a8d94a6b0b872aa6f89b)
+        export GIT_AUTHOR_DATE="2025-10-18 10:29:17 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:29:17 +0000"
+        ;;
+    52d3f27f8cf2a5aefbc9d1a40846c3462aff8da3)
+        export GIT_AUTHOR_DATE="2025-10-18 10:35:50 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:35:50 +0000"
+        ;;
+    db82061f3f892b92744057ac54239e5a02f204be)
+        export GIT_AUTHOR_DATE="2025-10-18 10:42:22 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:42:22 +0000"
+        ;;
+    4fa402d8ef01d18f40d4f6832615e8313ce3572e)
+        export GIT_AUTHOR_DATE="2025-10-18 10:48:55 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:48:55 +0000"
+        ;;
+    8537654ab8f9b070e7929f65da8f8af4891b3126)
+        export GIT_AUTHOR_DATE="2025-10-18 10:55:28 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 10:55:28 +0000"
+        ;;
+    35f3ecb250a1ed792da61f8e5bc598840f2e5848)
+        export GIT_AUTHOR_DATE="2025-10-18 11:02:01 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:02:01 +0000"
+        ;;
+    d5d153451620e16133b101409d155261c70a07e4)
+        export GIT_AUTHOR_DATE="2025-10-18 11:08:34 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:08:34 +0000"
+        ;;
+    495e03f436c672a052487a98de8c90bba2c99788)
+        export GIT_AUTHOR_DATE="2025-10-18 11:15:07 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:15:07 +0000"
+        ;;
+    8c1a25cbe1eac109fbe656e071a9dba2ca4a6676)
+        export GIT_AUTHOR_DATE="2025-10-18 11:21:40 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:21:40 +0000"
+        ;;
+    b6bced77f816aedf49039f393ba5587547bb6e5c)
+        export GIT_AUTHOR_DATE="2025-10-18 11:28:12 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:28:12 +0000"
+        ;;
+    1d36bbb561f906b253405af5efeb92f7ddc23a48)
+        export GIT_AUTHOR_DATE="2025-10-18 11:34:45 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:34:45 +0000"
+        ;;
+    5d30d9da37523feb6da18df96db9093ca7cb6751)
+        export GIT_AUTHOR_DATE="2025-10-18 11:41:18 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:41:18 +0000"
+        ;;
+    e23a2b77fb89abf859eb7134cfd63f062f42dfdf)
+        export GIT_AUTHOR_DATE="2025-10-18 11:47:51 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:47:51 +0000"
+        ;;
+    c1dd4864213acc973f3e377e5aeaa72811251949)
+        export GIT_AUTHOR_DATE="2025-10-18 11:54:24 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 11:54:24 +0000"
+        ;;
+    9767b79ae86230262e412f1df44e2ce0d244cd11)
+        export GIT_AUTHOR_DATE="2025-10-18 12:00:57 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:00:57 +0000"
+        ;;
+    fd2d466d28b3d9dfd37bfc1daa3dc49764760cc8)
+        export GIT_AUTHOR_DATE="2025-10-18 12:07:30 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:07:30 +0000"
+        ;;
+    53a0364be56effbbae0afc38412b031769bcc830)
+        export GIT_AUTHOR_DATE="2025-10-18 12:14:02 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:14:02 +0000"
+        ;;
+    1c87917236c3b46c42e1e1d25b8edaad5bc90f53)
+        export GIT_AUTHOR_DATE="2025-10-18 12:20:35 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:20:35 +0000"
+        ;;
+    f512e8cdc803d1caca60b72b85553bee939a9cc6)
+        export GIT_AUTHOR_DATE="2025-10-18 12:27:08 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:27:08 +0000"
+        ;;
+    a7238a6f693948fe87914b3195ac288f6e7e560d)
+        export GIT_AUTHOR_DATE="2025-10-18 12:33:41 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:33:41 +0000"
+        ;;
+    6dd60a1087307905391d7f12e1a2f6a8160c62a5)
+        export GIT_AUTHOR_DATE="2025-10-18 12:40:14 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:40:14 +0000"
+        ;;
+    4a9c3cd67e62d408d95e1b95cc8c8306b5840c6c)
+        export GIT_AUTHOR_DATE="2025-10-18 12:46:47 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:46:47 +0000"
+        ;;
+    78332ac2af3a26e19e829a8870d4940fbb69be06)
+        export GIT_AUTHOR_DATE="2025-10-18 12:53:20 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:53:20 +0000"
+        ;;
+    eeaf6d94b868cd9926d75c04a53caf7aae89bb28)
+        export GIT_AUTHOR_DATE="2025-10-18 12:59:52 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 12:59:52 +0000"
+        ;;
+    16e911515cb00390aabfb4aeb4c809fd6e86e91a)
+        export GIT_AUTHOR_DATE="2025-10-18 13:06:25 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:06:25 +0000"
+        ;;
+    ba57648fadda152288bac01d024edcf0b78d603e)
+        export GIT_AUTHOR_DATE="2025-10-18 13:12:58 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:12:58 +0000"
+        ;;
+    902da22b5f8c99e4ea31fa9c67b417097145e0f3)
+        export GIT_AUTHOR_DATE="2025-10-18 13:19:31 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:19:31 +0000"
+        ;;
+    da058f092291a920f9912e29165145e3e4c4baca)
+        export GIT_AUTHOR_DATE="2025-10-18 13:26:04 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:26:04 +0000"
+        ;;
+    2d3383978a2a778496cb7af7fdb5f15fab05c8ec)
+        export GIT_AUTHOR_DATE="2025-10-18 13:32:37 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:32:37 +0000"
+        ;;
+    f80a32c9d95a59dfb11d49b5e725783cc496c501)
+        export GIT_AUTHOR_DATE="2025-10-18 13:39:10 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:39:10 +0000"
+        ;;
+    2752c0eae86f85f6a5d65577003cee8eeaecc5e6)
+        export GIT_AUTHOR_DATE="2025-10-18 13:45:42 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:45:42 +0000"
+        ;;
+    69136d901dfdc853696ece411292d7e019037635)
+        export GIT_AUTHOR_DATE="2025-10-18 13:52:15 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:52:15 +0000"
+        ;;
+    5661c2b661e8e9798bf9021e8ea3d52294886da7)
+        export GIT_AUTHOR_DATE="2025-10-18 13:58:48 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 13:58:48 +0000"
+        ;;
+    7b579ed5fb9b43a9ed22fc27348b74c6b939677a)
+        export GIT_AUTHOR_DATE="2025-10-18 14:05:21 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:05:21 +0000"
+        ;;
+    ce57293ed4aa26a85aac9a936893774fc54dddd4)
+        export GIT_AUTHOR_DATE="2025-10-18 14:11:54 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:11:54 +0000"
+        ;;
+    2c18b4a48223862905a471e9c65e20679a5ae975)
+        export GIT_AUTHOR_DATE="2025-10-18 14:18:27 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:18:27 +0000"
+        ;;
+    b92188a214b17da6cc85084c424e9f26d778abd8)
+        export GIT_AUTHOR_DATE="2025-10-18 14:25:00 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:25:00 +0000"
+        ;;
+    6ea3b4a7a2f299dada69bb5f97338e1e802e5d66)
+        export GIT_AUTHOR_DATE="2025-10-18 14:31:32 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:31:32 +0000"
+        ;;
+    16b4c89b70259619e976aa415de21327b5a71df9)
+        export GIT_AUTHOR_DATE="2025-10-18 14:38:05 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:38:05 +0000"
+        ;;
+    533718312cbf13b6fa2e566586c2a680b159c129)
+        export GIT_AUTHOR_DATE="2025-10-18 14:44:38 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:44:38 +0000"
+        ;;
+    a940ed9d8ccb1c5855b5c40da9aa6ca9ba4643e5)
+        export GIT_AUTHOR_DATE="2025-10-18 14:51:11 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:51:11 +0000"
+        ;;
+    c9f75e9811c0288f3ece9aaf28af8832e72e4065)
+        export GIT_AUTHOR_DATE="2025-10-18 14:57:44 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 14:57:44 +0000"
+        ;;
+    5ca7784baba9f864d4be935de45e31c0f7a74da0)
+        export GIT_AUTHOR_DATE="2025-10-18 15:04:17 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:04:17 +0000"
+        ;;
+    ac721b8b632917a90bb834452edf6a7b0efa7818)
+        export GIT_AUTHOR_DATE="2025-10-18 15:10:50 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:10:50 +0000"
+        ;;
+    10100cb3e5b4840b70f0c6715ef302af6bda833b)
+        export GIT_AUTHOR_DATE="2025-10-18 15:17:22 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:17:22 +0000"
+        ;;
+    8f4dde34c2fbac9a84ece80d90195afc80e5d4c1)
+        export GIT_AUTHOR_DATE="2025-10-18 15:23:55 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:23:55 +0000"
+        ;;
+    b1e68192d649d4912a5fdab31021706e7d7fbc13)
+        export GIT_AUTHOR_DATE="2025-10-18 15:30:28 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:30:28 +0000"
+        ;;
+    e4759491917611fef530baa76eb5a49f5f69cb36)
+        export GIT_AUTHOR_DATE="2025-10-18 15:37:01 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:37:01 +0000"
+        ;;
+    14b5635b283d57a22d4819fe0f8070346c3c3af8)
+        export GIT_AUTHOR_DATE="2025-10-18 15:43:34 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:43:34 +0000"
+        ;;
+    edc025fd79dfe0bf1e12c3991ce406b3e09ff4fa)
+        export GIT_AUTHOR_DATE="2025-10-18 15:50:07 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:50:07 +0000"
+        ;;
+    a608590c85b3230895520e7a4cf1156821ab12d5)
+        export GIT_AUTHOR_DATE="2025-10-18 15:56:40 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 15:56:40 +0000"
+        ;;
+    cee6381d4de3e3781211e447245d6540be025af0)
+        export GIT_AUTHOR_DATE="2025-10-18 16:03:12 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:03:12 +0000"
+        ;;
+    ff12bd2292bac990d907510b0f8b4e0422f55fb6)
+        export GIT_AUTHOR_DATE="2025-10-18 16:09:45 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:09:45 +0000"
+        ;;
+    22468f44fa53ac38ff7f990717278989270fc175)
+        export GIT_AUTHOR_DATE="2025-10-18 16:16:18 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:16:18 +0000"
+        ;;
+    11e1a70e218521b36a0ea71e16f2c1b11af166cc)
+        export GIT_AUTHOR_DATE="2025-10-18 16:22:51 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:22:51 +0000"
+        ;;
+    386ec81e546f0a9f800ba4c577bb2ebbf541938f)
+        export GIT_AUTHOR_DATE="2025-10-18 16:29:24 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:29:24 +0000"
+        ;;
+    e44a4f91635841bc23ffab09633772246e51993f)
+        export GIT_AUTHOR_DATE="2025-10-18 16:35:57 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:35:57 +0000"
+        ;;
+    415c8f68d1582adac39d10af19f6394aa270c8ab)
+        export GIT_AUTHOR_DATE="2025-10-18 16:42:30 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:42:30 +0000"
+        ;;
+    8a093068ebcc9162e91568f88a6d3536c24c73fc)
+        export GIT_AUTHOR_DATE="2025-10-18 16:49:02 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:49:02 +0000"
+        ;;
+    063636cbb57596c26e88fe7851fe3b814ad36a97)
+        export GIT_AUTHOR_DATE="2025-10-18 16:55:35 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 16:55:35 +0000"
+        ;;
+    69f8b4b91ee9ed1667a22431de9e2c97e81256ba)
+        export GIT_AUTHOR_DATE="2025-10-18 17:02:08 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:02:08 +0000"
+        ;;
+    52d8dcf262706074ec973c79bc91fd0189c039d9)
+        export GIT_AUTHOR_DATE="2025-10-18 17:08:41 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:08:41 +0000"
+        ;;
+    5378bc91b6b01d04b91a542f9c213ab7eb8d332b)
+        export GIT_AUTHOR_DATE="2025-10-18 17:15:14 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:15:14 +0000"
+        ;;
+    13adfe7812585dac8f0c81a644c516e0fa74ed19)
+        export GIT_AUTHOR_DATE="2025-10-18 17:21:47 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:21:47 +0000"
+        ;;
+    0ba6223c1688ec7e7c0e922a1fde931364396ad4)
+        export GIT_AUTHOR_DATE="2025-10-18 17:28:20 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:28:20 +0000"
+        ;;
+    90f34db7e265e7e59885593aa9d7cf477a30000f)
+        export GIT_AUTHOR_DATE="2025-10-18 17:34:52 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:34:52 +0000"
+        ;;
+    e80dce9cb36abe54c1e70b8bd01d41040d483822)
+        export GIT_AUTHOR_DATE="2025-10-18 17:41:25 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:41:25 +0000"
+        ;;
+    eb182d7c6e4e7dcede226dd48b16ef581aeae036)
+        export GIT_AUTHOR_DATE="2025-10-18 17:47:58 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:47:58 +0000"
+        ;;
+    e4172691628398bd023d0811fd3530fa03ed20ad)
+        export GIT_AUTHOR_DATE="2025-10-18 17:54:31 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 17:54:31 +0000"
+        ;;
+    d682470fd86f35ef1787e2264bef05897ab88b0d)
+        export GIT_AUTHOR_DATE="2025-10-18 18:01:04 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:01:04 +0000"
+        ;;
+    ad975bf419959f1848b6ec9d3ae36d662e7f7f9f)
+        export GIT_AUTHOR_DATE="2025-10-18 18:07:37 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:07:37 +0000"
+        ;;
+    9c28de582e203cea157fae307a71475b6098aca6)
+        export GIT_AUTHOR_DATE="2025-10-18 18:14:10 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:14:10 +0000"
+        ;;
+    2cb01028b0ad92ba43047a63169194f8a12d16f5)
+        export GIT_AUTHOR_DATE="2025-10-18 18:20:42 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:20:42 +0000"
+        ;;
+    9865fc4b738609ed9492cbcf1d10f557f5ff103c)
+        export GIT_AUTHOR_DATE="2025-10-18 18:27:15 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:27:15 +0000"
+        ;;
+    3c5efd2e66648d88bf76623d099a73cd678c8650)
+        export GIT_AUTHOR_DATE="2025-10-18 18:33:48 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:33:48 +0000"
+        ;;
+    97c95d6d8bb10f1267fef179a1a9af9d2bc5ad31)
+        export GIT_AUTHOR_DATE="2025-10-18 18:40:21 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:40:21 +0000"
+        ;;
+    81f4de2230e8ed1bcfcc7e74c43332191ea33390)
+        export GIT_AUTHOR_DATE="2025-10-18 18:46:54 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:46:54 +0000"
+        ;;
+    bc434a23eec703ddb2967c7895f6136426300606)
+        export GIT_AUTHOR_DATE="2025-10-18 18:53:27 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 18:53:27 +0000"
+        ;;
+    af2f4279ba8705374c14b74c818faa49cedafe3b)
+        export GIT_AUTHOR_DATE="2025-10-18 19:00:00 +0000"
+        export GIT_COMMITTER_DATE="2025-10-18 19:00:00 +0000"
+        ;;
+    *)
+        ;;
+esac
