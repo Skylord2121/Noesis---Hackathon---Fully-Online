@@ -1,0 +1,182 @@
+AMAZON SHIPPING POLICIES AND PROCEDURES
+
+=== STANDARD SHIPPING TIMES ===
+
+Free Shipping (Non-Prime):
+- Standard: 5-8 business days
+- No minimum order required
+- Available on millions of items
+- Tracking provided for all shipments
+
+Prime Shipping:
+- FREE Two-Day Shipping on eligible items
+- FREE Same-Day Delivery in select cities (order by 12pm)
+- FREE One-Day Shipping on select items
+- FREE No-Rush Shipping (earn digital credits)
+
+Expedited Shipping Options:
+- One-Day Shipping: $12.99 per item
+- Two-Day Shipping: $7.99 per item
+- Same-Day Delivery: $9.99 per order (where available)
+
+=== GUARANTEED DELIVERY DATES ===
+
+When Amazon shows a guaranteed delivery date:
+- We commit to delivering by end of that day (9pm local time)
+- If we miss the date, we offer full refund of shipping costs
+- Prime members automatically receive refund + promotional credit
+- For critical shipments (gifts, events), we may offer full refund + reorder
+
+What qualifies as "late delivery":
+- Package not delivered by guaranteed date
+- Package shows "delivered" but customer hasn't received it (after 48 hours)
+- Package shows out for delivery for more than 2 days
+
+=== TRACKING AND UPDATES ===
+
+All shipments include:
+- Real-time tracking number
+- Email notifications at key milestones (shipped, out for delivery, delivered)
+- Text message alerts (if customer enabled)
+- Ability to track in Amazon app or website
+
+Common tracking statuses:
+- "Preparing for shipment": Order confirmed, items being picked and packed
+- "Shipped": Package handed off to carrier
+- "In transit": Package moving through carrier network
+- "Out for delivery": Package on delivery vehicle today
+- "Delivered": Package left at delivery location
+- "Attempted delivery": Driver couldn't complete delivery (will retry)
+
+=== DELIVERY LOCATION OPTIONS ===
+
+Customers can choose:
+1. Home delivery (default)
+   - Left at doorstep, porch, or mailroom
+   - Signature required for high-value items ($500+)
+   
+2. Amazon Locker
+   - Free secure pickup at 7-Eleven, Whole Foods, etc.
+   - 3-day pickup window
+   - Code sent via email and text
+   
+3. Amazon Hub Counter
+   - Pickup at local retail stores
+   - 14-day pickup window
+   - Staff hands package directly to customer
+
+=== SHIPPING ISSUES AND RESOLUTIONS ===
+
+Package shows "delivered" but customer didn't receive:
+1. Check with household members and neighbors
+2. Check around property (side door, garage, mailroom)
+3. Wait 48 hours (carrier may have marked delivered early)
+4. After 48 hours: Amazon issues immediate refund or replacement
+
+Package is late (past guaranteed date):
+1. Offer to track package and provide update
+2. Refund shipping costs immediately
+3. If item still needed urgently, offer replacement with expedited shipping (free)
+4. If no longer needed, offer full refund
+5. Add promotional credit ($5-$25 depending on order value)
+
+Package damaged during shipping:
+1. Customer does not need to return item
+2. Issue immediate refund or replacement
+3. We file claim with carrier
+4. No cost to customer
+
+Wrong item delivered:
+1. Issue immediate refund or send correct item
+2. Customer can keep wrong item (don't need to return)
+3. Priority shipping for correct item at no charge
+
+=== AGENT GUIDELINES FOR SHIPPING ISSUES ===
+
+Empathy first:
+- "I understand how frustrating it is when a package doesn't arrive on time"
+- "I'm so sorry this delivery didn't go as planned"
+- "Let me make this right for you immediately"
+
+Take ownership:
+- Don't blame the carrier ("UPS lost it")
+- Say "We missed our delivery commitment" instead
+- "This is our responsibility, and I'm going to fix it"
+
+Provide multiple options:
+- "Would you like a refund or a replacement with overnight shipping?"
+- "I can send a new one right away, or if you've found it elsewhere, I can just refund you"
+
+Add value when appropriate:
+- "I'm also adding a $15 credit to your account for the inconvenience"
+- "I've upgraded your replacement to overnight shipping at no charge"
+- "As an apology, I'm including a $20 credit for your next order"
+
+=== INTERNATIONAL SHIPPING ===
+
+Amazon Global:
+- Ships to 100+ countries
+- Customs and duties calculated at checkout
+- Delivery times: 7-21 business days depending on destination
+- Full tracking provided
+- Carrier: Amazon Global or local postal service
+
+International returns:
+- Customer pays return shipping for non-defective items
+- We cover return shipping for defective/wrong items
+- Refunds issued in original currency
+
+=== WEATHER AND DISASTER DELAYS ===
+
+When weather impacts delivery:
+- Proactive communication sent to affected customers
+- Automatic extension of guaranteed delivery dates
+- No penalty to customer (shipping fees waived)
+- Option to cancel order for full refund
+
+Natural disasters (hurricanes, fires, floods):
+- All delivery guarantees waived in affected areas
+- Refunds processed automatically if requested
+- Priority restoration of service to affected regions
+- Donation matching for relief efforts
+
+=== CARRIER INFORMATION ===
+
+Primary carriers:
+- Amazon Logistics (our own delivery network)
+- USPS (United States Postal Service)
+- UPS (United Parcel Service)
+- FedEx
+- Regional carriers for specific areas
+
+Tracking by carrier:
+- Amazon Logistics: Track in Amazon app or website
+- USPS/UPS/FedEx: Can also track on carrier's website with tracking number
+
+Lost package claims:
+- Amazon owns the relationship with carrier
+- Customer never needs to contact carrier directly
+- We handle all claims and investigations
+- Customer receives refund/replacement before claim resolves
+
+=== SPECIAL NOTES FOR AGENTS ===
+
+Shipping cost refunds:
+- Process immediately if delivery was late
+- No approval needed for shipping refunds under $15
+- Get supervisor approval for expedited shipping refunds over $15
+
+Replacement orders:
+- Can be sent before receiving return (trust customers)
+- Upgrade to faster shipping at no cost when original delivery failed
+- No approval needed for replacements under $100
+
+Promotional credits:
+- $5-$10 for minor inconvenience (1 day late)
+- $15-$25 for major inconvenience (multiple days late, special occasion)
+- $50+ for extreme cases (get supervisor approval)
+
+Priority handling:
+- Mark account for "priority processing" if multiple shipping issues
+- Alert warehouse team to double-check future orders
+- Consider upgrading customer to Prime trial (with permission)

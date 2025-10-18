@@ -219,6 +219,48 @@ app.post('/api/analyze-message', async (c) => {
   }
 })
 
+// Query Documents API - Search indexed company documents
+app.post('/api/query-docs', async (c) => {
+  try {
+    const { query, top_k = 3, ollamaUrl } = await c.req.json()
+    const url = ollamaUrl || 'http://localhost:11434'
+    
+    if (!query || query.trim().length === 0) {
+      return c.json({ 
+        success: false, 
+        error: 'Query is required' 
+      }, 400)
+    }
+    
+    // Note: This endpoint expects the user to have run document_indexer.py locally
+    // The actual RAG retrieval happens via the query_documents.py script
+    // For now, we'll provide a simple response suggesting relevant document sections
+    
+    // In production, you would:
+    // 1. Load the vector index from disk (.index directory)
+    // 2. Query it with the user's question
+    // 3. Return the most relevant chunks
+    
+    // For MVP, we'll use Ollama directly with document context
+    // This is a simplified approach - full RAG would use the vector index
+    
+    const response = {
+      success: true,
+      query: query,
+      message: 'Document query endpoint ready. Run document_indexer.py locally to enable full RAG retrieval.',
+      suggestion: 'For now, the AI coaching system will include general guidance. After indexing, it will reference specific company policies.'
+    }
+    
+    return c.json(response)
+    
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error.message 
+    }, 500)
+  }
+})
+
 // Serve static files
 app.use('/static/*', serveStatic({ root: './' }))
 

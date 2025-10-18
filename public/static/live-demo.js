@@ -531,6 +531,31 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             context += `🚨 CRITICAL: ISSUE="${window.jsDetectedIssue}" - YOU MUST SET issue TO EXACTLY THIS VALUE!\n\n`;
         }
         
+        // Query company documents for relevant context (RAG)
+        try {
+            const docQuery = await fetch('/api/query-docs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: customerMessage,
+                    top_k: 2,
+                    ollamaUrl: ollamaUrl
+                })
+            });
+            
+            if (docQuery.ok) {
+                const docResponse = await docQuery.json();
+                if (docResponse.success && docResponse.response) {
+                    context += `📚 COMPANY POLICY REFERENCE:\n`;
+                    context += `${docResponse.response}\n\n`;
+                    context += `⚠️ Use this policy guidance in your coaching advice!\n\n`;
+                }
+            }
+        } catch (docError) {
+            // Silently fail - document query is optional
+            console.log('Document query unavailable (RAG not yet configured)');
+        }
+        
         context += `Return ONLY this EXACT JSON format:\n`;
         context += `{\n`;
         context += `  "coaching": {\n`;
@@ -1456,6 +1481,40 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+// Document Management Functions
+function openDocumentsFolder() {
+    showToast('Documents folder: /home/user/webapp/company-docs/', 'info');
+    
+    // Show instruction
+    const message = `
+        📁 Company Documents Folder:
+        /home/user/webapp/company-docs/
+        
+        Add your policy documents here (PDF, MD, TXT, DOC, DOCX)
+        then run: python3 scripts/document_indexer.py
+    `;
+    
+    console.log(message);
+    
+    // Optional: Open in new tab if user is viewing on their local machine
+    // This won't work in Cloudflare Pages but will work locally
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        try {
+            window.open('file:///home/user/webapp/company-docs/', '_blank');
+        } catch (e) {
+            console.log('Cannot open local file browser from web page');
+        }
+    }
+}
+
+function viewSetupGuide() {
+    // Open LLAMAINDEX_SETUP.md in a new window/tab
+    const setupUrl = '/static/LLAMAINDEX_SETUP.md';
+    window.open(setupUrl, '_blank');
+    
+    showToast('Opening RAG setup guide...', 'info');
+}
+
 // Make functions available globally
 window.usePhraseClicked = usePhraseClicked;
 window.toggleTheme = toggleTheme;
@@ -1465,3 +1524,5 @@ window.saveSettings = saveSettings;
 window.testOllamaConnection = testOllamaConnection;
 window.toggleLiveSession = toggleLiveSession;
 window.togglePause = togglePause;
+window.openDocumentsFolder = openDocumentsFolder;
+window.viewSetupGuide = viewSetupGuide;

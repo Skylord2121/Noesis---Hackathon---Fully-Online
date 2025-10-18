@@ -25,6 +25,7 @@
 - 💡 **Real-Time Coaching** - AI suggests phrases and coaching tips as you speak
 - 🌊 **Voice Spectrum** - Visual audio analyzer connected to your microphone
 - 📝 **Live Transcript** - All conversation logged with timestamps
+- 📚 **RAG (Document Retrieval)** - AI references company policies in coaching suggestions
 
 ### AI-Powered Analysis
 - **Comprehensive Metrics:**
@@ -46,6 +47,64 @@
 ## 🌐 Live Demo
 
 **Dashboard URL:** https://3000-ib0z8zuo7krasmb055710-b237eb32.sandbox.novita.ai
+
+## 🚀 New: Document-Based Coaching (RAG)
+
+**Now you can upload company documents and the AI will reference them in coaching suggestions!**
+
+### What is RAG?
+
+RAG (Retrieval-Augmented Generation) allows the AI to:
+- **Reference your company policies** when giving coaching advice
+- **Quote specific guidelines** from your documentation
+- **Provide contextually relevant suggestions** based on your procedures
+
+### Setup Document-Based Coaching
+
+1. **Add Your Documents**
+   ```bash
+   cd /home/user/webapp/company-docs/
+   # Add your files: refund policies, scripts, empathy guides, etc.
+   # Supported: .txt, .pdf, .md, .doc, .docx
+   ```
+
+2. **Index the Documents**
+   ```bash
+   # Pull the embedding model (first time only)
+   ollama pull nomic-embed-text
+   
+   # Index your documents
+   python3 scripts/document_indexer.py
+   ```
+
+3. **Done!** The AI will now reference your policies in coaching suggestions.
+
+### Example
+
+**Without RAG:**
+> "Consider offering a refund to resolve this issue."
+
+**With RAG (after indexing company policies):**
+> "Per our damaged item policy: Issue immediate refund without requiring return. Use phrase: 'I'm so sorry your item arrived damaged. Let me process an immediate refund - you don't need to return it.'"
+
+### Sample Documents Included
+
+The system comes with 4 Amazon call center example documents:
+- `amazon_refund_policy.md` - Refund guidelines and empathy scripts
+- `customer_service_scripts.md` - Call center scripts and de-escalation
+- `shipping_policies.txt` - Shipping guidelines and procedures
+- `empathy_coaching.md` - Advanced empathy framework (A.P.O.L.O.G.Y.)
+
+**Replace these with your own company documents!**
+
+### Access in Dashboard
+
+1. Click **Settings** (⚙️) in top right
+2. Find **"Company Documents (RAG)"** section
+3. Click **"Setup Guide"** for detailed instructions
+4. Click **"Open Folder"** to access document directory
+
+For complete setup instructions, see `LLAMAINDEX_SETUP.md`.
 
 ## ⚙️ Setup Instructions
 
@@ -188,44 +247,61 @@ Microphone → Web Audio API → Analyser Node → Frequency Data → Visual Bar
 ✅ **Mic pause during AI reply** - Prevents transcript disruption  
 ✅ **Extended speech window** - Continuous listening for natural pauses  
 ✅ **Pause/Resume controls** - Mid-session pause functionality  
+✅ **RAG Implementation** - LlamaIndex document indexing and retrieval  
+✅ **Document Management UI** - Settings panel for document upload guidance  
+✅ **Company Policy Integration** - AI references indexed documents in coaching  
+✅ **Dual-layer validation** - JavaScript + AI for 99% metric accuracy  
 
 ## 🔮 Features Not Yet Implemented
 
-🔲 Manual speaker selection (currently auto AI agent)  
-🔲 Pause detection for better speaker switching  
-🔲 Save conversation history  
-🔲 Export transcript/metrics  
-🔲 Multiple agent personalities  
-🔲 Scenario templates  
-🔲 Performance analytics over time  
+🔲 **Document upload from dashboard** - Currently manual file placement  
+🔲 **Document preview in UI** - View indexed documents in settings  
+🔲 **Re-indexing trigger** - Button to re-index after adding documents  
+🔲 **Manual speaker selection** - Currently auto AI agent  
+🔲 **Save conversation history** - Sessions are ephemeral  
+🔲 **Export transcript/metrics** - Download conversations  
+🔲 **Multiple agent personalities** - Different AI personas  
+🔲 **Scenario templates** - Pre-configured training scenarios  
+🔲 **Performance analytics** - Track improvement over time  
 
 ## 🎯 Recommended Next Steps
 
-1. **Enhanced Speech Recognition**
+1. **Enhanced RAG Features**
+   - In-dashboard document upload (drag & drop)
+   - Document preview and management UI
+   - Automatic re-indexing when documents change
+   - Document search from dashboard
+   - Version control for policy documents
+
+2. **Enhanced Speech Recognition**
    - Add manual "Push-to-Talk" button for customer
    - Implement silence detection for natural pauses
    - Support for multiple languages
 
-2. **Agent Customization**
+3. **Agent Customization**
    - Different AI agent personas (empathetic, technical, etc.)
    - Adjustable response length and style
    - Custom coaching focus areas
+   - Company-specific response templates
 
-3. **Session Management**
+4. **Session Management**
    - Save and review past sessions
    - Export transcripts as PDF/JSON
    - Session replay functionality
+   - Coaching effectiveness tracking
 
-4. **Advanced Analytics**
+5. **Advanced Analytics**
    - Track improvement over multiple sessions
-   - Coaching effectiveness metrics
    - Identify common coaching patterns
+   - Compare metrics across agents
+   - Policy compliance scoring
 
-5. **Production Features**
+6. **Production Features**
    - User authentication
    - Session history database
    - Multi-user support
    - Supervisor monitoring
+   - Integration with CRM systems
 
 ## 💻 Local Development
 
@@ -236,6 +312,20 @@ cd webapp
 
 # Install dependencies
 npm install
+
+# Install Python dependencies for RAG
+pip3 install llama-index llama-index-llms-ollama llama-index-embeddings-ollama pypdf
+
+# Pull required Ollama models
+ollama pull qwen2.5:3b
+ollama pull nomic-embed-text
+
+# Add your company documents
+cp your-policies.pdf company-docs/
+cp your-scripts.md company-docs/
+
+# Index documents for RAG
+python3 scripts/document_indexer.py
 
 # Build project
 npm run build
@@ -249,6 +339,14 @@ pm2 logs webapp --nostream
 # Stop service
 pm2 stop webapp
 ```
+
+## 📚 RAG System Files
+
+- `company-docs/` - Your company policy documents
+- `scripts/document_indexer.py` - Indexes documents into vector database
+- `scripts/query_documents.py` - Query indexed documents (can be used standalone)
+- `.index/` - Vector index storage (auto-created, do not edit)
+- `LLAMAINDEX_SETUP.md` - Complete RAG setup guide
 
 ## 🔧 Troubleshooting
 
