@@ -326,7 +326,13 @@ function addTranscriptLine(item) {
     `;
     
     transcriptContainer.appendChild(transcriptLine);
-    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    
+    // Force scroll to bottom with smooth animation
+    setTimeout(() => {
+        transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+        // Also try scrollIntoView for the last element
+        transcriptLine.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 50);
 }
 
 function addTypingIndicator() {
