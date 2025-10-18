@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Empathy AI - Real-Time Call Center Dashboard</title>
+    <title>Empathy AI - Real-Time Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -18,772 +18,385 @@
             background: #0a0e17;
             color: #e2e8f0;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            overflow-x: hidden;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .glass-panel {
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(59, 130, 246, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        .glow-blue {
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-        }
-
-        .pulse-animation {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: .7;
-            }
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 8px;
         }
 
         .wave-bar {
             display: inline-block;
-            width: 3px;
-            height: 20px;
+            width: 2px;
+            height: 16px;
             background: linear-gradient(180deg, #3b82f6 0%, #06b6d4 100%);
-            margin: 0 2px;
+            margin: 0 1px;
             animation: wave 1s ease-in-out infinite;
             border-radius: 2px;
         }
 
         @keyframes wave {
-            0%, 100% { height: 20px; }
-            50% { height: 40px; }
+            0%, 100% { height: 16px; }
+            50% { height: 32px; }
         }
 
         .wave-bar:nth-child(2) { animation-delay: 0.1s; }
         .wave-bar:nth-child(3) { animation-delay: 0.2s; }
         .wave-bar:nth-child(4) { animation-delay: 0.3s; }
         .wave-bar:nth-child(5) { animation-delay: 0.4s; }
-        .wave-bar:nth-child(6) { animation-delay: 0.5s; }
-        .wave-bar:nth-child(7) { animation-delay: 0.6s; }
 
-        .transcript-item {
-            transition: all 0.3s ease;
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 4px;
         }
 
-        .transcript-item:hover {
-            background: rgba(59, 130, 246, 0.1);
-            transform: translateX(4px);
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
         }
 
-        .suggestion-card {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
-            border-left: 3px solid #3b82f6;
-            transition: all 0.3s ease;
-        }
-
-        .suggestion-card:hover {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
-            transform: translateY(-2px);
-        }
-
-        .metric-card {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .metric-card:hover {
-            border-color: rgba(59, 130, 246, 0.6);
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.2);
-        }
-
-        .emotion-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .status-online {
-            background: #10b981;
-            box-shadow: 0 0 10px #10b981;
-        }
-
-        .scrollbar-custom::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .scrollbar-custom::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.5);
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.4);
             border-radius: 10px;
         }
 
-        .scrollbar-custom::-webkit-scrollbar-thumb {
-            background: rgba(59, 130, 246, 0.5);
-            border-radius: 10px;
-        }
-
-        .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-            background: rgba(59, 130, 246, 0.7);
-        }
-
-        .empathy-meter-container {
-            position: relative;
-            width: 100%;
-            height: 200px;
-        }
-
-        .alert-banner {
-            background: linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.05) 100%);
-            border-left: 4px solid #ef4444;
+        .emotion-indicator {
+            height: 4px;
+            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+            border-radius: 2px;
         }
     </style>
 </head>
-<body class="p-4">
-    <!-- Header -->
-    <div class="glass-panel p-4 mb-4">
+<body class="p-3">
+    <!-- Compact Header -->
+    <div class="glass-panel p-3 mb-3">
         <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                        <i class="fas fa-brain text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                            Empathy AI Dashboard
-                        </h1>
-                        <p class="text-gray-400 text-sm">Real-time emotional intelligence for every conversation</p>
-                    </div>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <i class="fas fa-brain text-white text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-blue-400">Empathy AI</h1>
+                    <p class="text-xs text-gray-500">Real-time Call Analysis</p>
                 </div>
             </div>
             <div class="flex items-center gap-6">
-                <div class="text-right">
-                    <div class="text-sm text-gray-400">Active Calls</div>
-                    <div class="text-2xl font-bold text-blue-400">247</div>
+                <div class="text-center">
+                    <div class="text-xs text-gray-500">Empathy Score</div>
+                    <div class="text-2xl font-bold text-green-400">8.4</div>
                 </div>
-                <div class="text-right">
-                    <div class="text-sm text-gray-400">Avg Empathy Score</div>
-                    <div class="text-2xl font-bold text-green-400">8.6</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-sm text-gray-400">System Status</div>
-                    <div class="flex items-center">
-                        <span class="status-indicator status-online"></span>
-                        <span class="text-green-400 font-semibold">Operational</span>
-                    </div>
+                <div class="text-center">
+                    <div class="text-xs text-gray-500">Call Time</div>
+                    <div class="text-xl font-bold text-blue-400">05:42</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-12 gap-4">
-        <!-- Left Column: Agent & Customer Info, Voice Spectrum -->
-        <div class="col-span-3 space-y-4">
+    <div class="grid grid-cols-12 gap-3" style="height: calc(100vh - 120px);">
+        <!-- Left Sidebar - Agent & Customer -->
+        <div class="col-span-2 space-y-3 overflow-y-auto scrollbar-thin">
             <!-- Agent Info -->
-            <div class="glass-panel p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <i class="fas fa-user-headset text-blue-400"></i>
-                    <h3 class="font-semibold text-lg">Agent Profile</h3>
+            <div class="glass-panel p-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fas fa-headset text-blue-400 text-xs"></i>
+                    <h3 class="font-semibold text-sm">Agent</h3>
                 </div>
-                <div class="space-y-3">
-                    <div class="flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name=Sarah+Johnson&background=3b82f6&color=fff" 
-                             class="w-12 h-12 rounded-full ring-2 ring-blue-500" alt="Agent">
-                        <div>
-                            <div class="font-semibold text-blue-300">Sarah Johnson</div>
-                            <div class="text-xs text-gray-400">ID: AG-2847</div>
-                        </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <img src="https://ui-avatars.com/api/?name=Sarah+J&background=3b82f6&color=fff&size=32" 
+                         class="w-8 h-8 rounded-full ring-1 ring-blue-500" alt="Agent">
+                    <div>
+                        <div class="font-semibold text-sm text-blue-300">Sarah J.</div>
+                        <div class="text-xs text-gray-500">ID: 2847</div>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <div class="bg-slate-800/50 p-2 rounded">
-                            <div class="text-gray-400">Calls Today</div>
-                            <div class="font-bold text-white">34</div>
-                        </div>
-                        <div class="bg-slate-800/50 p-2 rounded">
-                            <div class="text-gray-400">Avg Handle Time</div>
-                            <div class="font-bold text-white">4:32</div>
-                        </div>
-                        <div class="bg-slate-800/50 p-2 rounded">
-                            <div class="text-gray-400">CSAT Score</div>
-                            <div class="font-bold text-green-400">9.1</div>
-                        </div>
-                        <div class="bg-slate-800/50 p-2 rounded">
-                            <div class="text-gray-400">Empathy Avg</div>
-                            <div class="font-bold text-blue-400">8.8</div>
-                        </div>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Calls Today</span>
+                        <span class="font-semibold">34</span>
                     </div>
-                    <div class="flex gap-2 text-xs">
-                        <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded">Tier 2</span>
-                        <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded">Top Performer</span>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Avg CSAT</span>
+                        <span class="font-semibold text-green-400">9.1</span>
                     </div>
                 </div>
             </div>
 
             <!-- Customer Info -->
-            <div class="glass-panel p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <i class="fas fa-user-circle text-cyan-400"></i>
-                    <h3 class="font-semibold text-lg">Customer Profile</h3>
+            <div class="glass-panel p-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fas fa-user text-cyan-400 text-xs"></i>
+                    <h3 class="font-semibold text-sm">Customer</h3>
                 </div>
-                <div class="space-y-3">
-                    <div class="flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name=Michael+Chen&background=06b6d4&color=fff" 
-                             class="w-12 h-12 rounded-full ring-2 ring-cyan-500" alt="Customer">
-                        <div>
-                            <div class="font-semibold text-cyan-300">Michael Chen</div>
-                            <div class="text-xs text-gray-400">CID: C-91523</div>
-                        </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <img src="https://ui-avatars.com/api/?name=Michael+C&background=06b6d4&color=fff&size=32" 
+                         class="w-8 h-8 rounded-full ring-1 ring-cyan-500" alt="Customer">
+                    <div>
+                        <div class="font-semibold text-sm text-cyan-300">Michael C.</div>
+                        <div class="text-xs text-gray-500">Premium • 3.5yr</div>
                     </div>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-gray-400">Account Type:</span>
-                            <span class="text-yellow-400 font-semibold">Premium</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-400">Tenure:</span>
-                            <span>3.5 years</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-400">Previous Calls:</span>
-                            <span>12</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-400">Last Call:</span>
-                            <span>8 days ago</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-400">Sentiment History:</span>
-                            <span class="emotion-badge bg-yellow-500/20 text-yellow-300">
-                                <i class="fas fa-exclamation-triangle mr-1"></i> Mixed
-                            </span>
-                        </div>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Issue</span>
+                        <span class="text-red-400 font-semibold">Billing</span>
                     </div>
-                    <div class="pt-2 border-t border-gray-700">
-                        <div class="text-xs text-gray-400 mb-1">Issue Category</div>
-                        <div class="flex gap-1">
-                            <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs">Billing Dispute</span>
-                        </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Sentiment</span>
+                        <span class="text-yellow-400 font-semibold">Frustrated</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Voice Spectrum Analyzer -->
-            <div class="glass-panel p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <i class="fas fa-waveform text-purple-400"></i>
-                    <h3 class="font-semibold text-lg">Voice Spectrum</h3>
+            <!-- Voice Metrics -->
+            <div class="glass-panel p-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fas fa-waveform text-purple-400 text-xs"></i>
+                    <h3 class="font-semibold text-sm">Voice</h3>
                 </div>
-                <div class="space-y-4">
-                    <!-- Live Waveform -->
-                    <div class="flex items-center justify-center h-20 bg-slate-900/50 rounded-lg">
-                        <div class="flex items-end gap-1">
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
+                <div class="flex items-center justify-center h-12 bg-slate-900/30 rounded mb-2">
+                    <div class="flex items-end gap-0.5">
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                    </div>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-400">Stress Level</span>
+                            <span class="text-orange-400 font-semibold">High</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded-full h-1">
+                            <div class="bg-orange-500 h-1 rounded-full" style="width: 75%"></div>
                         </div>
                     </div>
-                    
-                    <!-- Audio Metrics -->
-                    <div class="space-y-3 text-sm">
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-gray-400">Customer Volume</span>
-                                <span class="text-red-400 font-semibold">High</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2">
-                                <div class="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full" style="width: 85%"></div>
-                            </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-400">Clarity</span>
+                            <span class="text-green-400 font-semibold">Good</span>
                         </div>
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-gray-400">Speech Rate</span>
-                                <span class="text-yellow-400 font-semibold">Fast</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2">
-                                <div class="bg-gradient-to-r from-yellow-500 to-orange-500 h-2 rounded-full" style="width: 78%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-gray-400">Tone Stress Level</span>
-                                <span class="text-orange-400 font-semibold">Elevated</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2">
-                                <div class="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full" style="width: 72%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-gray-400">Clarity Score</span>
-                                <span class="text-green-400 font-semibold">Good</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2">
-                                <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style="width: 88%"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Audio Alerts -->
-                    <div class="alert-banner p-3 rounded-lg">
-                        <div class="flex items-start gap-2">
-                            <i class="fas fa-exclamation-circle text-red-400 mt-0.5"></i>
-                            <div class="text-sm">
-                                <div class="font-semibold text-red-300">Voice Stress Detected</div>
-                                <div class="text-gray-300 text-xs">Customer voice indicates frustration. Consider slowing pace.</div>
-                            </div>
+                        <div class="w-full bg-gray-800 rounded-full h-1">
+                            <div class="bg-green-500 h-1 rounded-full" style="width: 88%"></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Center Column: Empathy Meter, Live Transcript, Call Controls -->
-        <div class="col-span-6 space-y-4">
-            <!-- Empathy Meter & Current Emotion -->
-            <div class="glass-panel p-4">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-heart-pulse text-pink-400 text-xl"></i>
-                        <h3 class="font-semibold text-lg">Real-Time Empathy Meter</h3>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="text-right">
-                            <div class="text-xs text-gray-400">Current Score</div>
-                            <div class="text-3xl font-bold text-green-400">8.2</div>
+        <!-- Center - Transcript & Controls -->
+        <div class="col-span-7 flex flex-col gap-3">
+            <!-- Emotion Bar -->
+            <div class="glass-panel p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-4 text-xs">
+                        <div>
+                            <span class="text-gray-400">Frustration</span>
+                            <span class="ml-2 font-bold text-red-400">75%</span>
                         </div>
-                        <div class="text-right">
-                            <div class="text-xs text-gray-400">Call Duration</div>
-                            <div class="text-xl font-bold text-blue-400">05:34</div>
+                        <div>
+                            <span class="text-gray-400">Confusion</span>
+                            <span class="ml-2 font-bold text-yellow-400">42%</span>
                         </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <!-- Empathy Chart -->
-                    <div>
-                        <canvas id="empathyChart" width="300" height="200"></canvas>
-                    </div>
-
-                    <!-- Current Emotions -->
-                    <div class="space-y-3">
-                        <h4 class="text-sm font-semibold text-gray-300 mb-3">Detected Emotions</h4>
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-angry text-red-400"></i>
-                                    <span class="text-sm">Frustration</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-24 bg-gray-700 rounded-full h-2">
-                                        <div class="bg-red-500 h-2 rounded-full" style="width: 75%"></div>
-                                    </div>
-                                    <span class="text-sm text-red-400 font-semibold w-8">75%</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-frown text-yellow-400"></i>
-                                    <span class="text-sm">Disappointment</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-24 bg-gray-700 rounded-full h-2">
-                                        <div class="bg-yellow-500 h-2 rounded-full" style="width: 58%"></div>
-                                    </div>
-                                    <span class="text-sm text-yellow-400 font-semibold w-8">58%</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-meh text-blue-400"></i>
-                                    <span class="text-sm">Confusion</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-24 bg-gray-700 rounded-full h-2">
-                                        <div class="bg-blue-500 h-2 rounded-full" style="width: 42%"></div>
-                                    </div>
-                                    <span class="text-sm text-blue-400 font-semibold w-8">42%</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-smile text-green-400"></i>
-                                    <span class="text-sm">Hopefulness</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-24 bg-gray-700 rounded-full h-2">
-                                        <div class="bg-green-500 h-2 rounded-full" style="width: 28%"></div>
-                                    </div>
-                                    <span class="text-sm text-green-400 font-semibold w-8">28%</span>
-                                </div>
-                            </div>
+                        <div>
+                            <span class="text-gray-400">Hope</span>
+                            <span class="ml-2 font-bold text-green-400">28%</span>
                         </div>
                     </div>
+                    <div class="flex items-center gap-1">
+                        <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        <span class="text-xs text-gray-400">LIVE</span>
+                    </div>
                 </div>
-
-                <!-- Emotional Timeline -->
-                <div>
-                    <h4 class="text-sm font-semibold text-gray-300 mb-2">Emotional Journey</h4>
-                    <canvas id="emotionTimeline" width="600" height="100"></canvas>
-                </div>
+                <div class="emotion-indicator"></div>
             </div>
 
             <!-- Live Transcript -->
-            <div class="glass-panel p-4 flex flex-col" style="height: 400px;">
+            <div class="glass-panel p-3 flex-1 flex flex-col">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
-                        <i class="fas fa-comment-dots text-green-400 pulse-animation"></i>
-                        <h3 class="font-semibold text-lg">Live Transcript</h3>
-                        <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-xs font-semibold flex items-center gap-1">
-                            <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                            LIVE
-                        </span>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="px-3 py-1 bg-blue-500/20 text-blue-300 rounded text-xs hover:bg-blue-500/30">
-                            <i class="fas fa-download mr-1"></i> Export
-                        </button>
-                        <button class="px-3 py-1 bg-purple-500/20 text-purple-300 rounded text-xs hover:bg-purple-500/30">
-                            <i class="fas fa-search mr-1"></i> Search
-                        </button>
+                        <i class="fas fa-comment-dots text-green-400 text-sm"></i>
+                        <h3 class="font-semibold text-sm">Live Transcript</h3>
                     </div>
                 </div>
                 
-                <div class="flex-1 overflow-y-auto scrollbar-custom space-y-3">
+                <div class="flex-1 overflow-y-auto scrollbar-thin space-y-2">
                     <!-- Customer Message -->
-                    <div class="transcript-item p-3 rounded-lg bg-slate-800/30 border-l-4 border-red-500">
-                        <div class="flex items-start gap-3">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
-                                    <i class="fas fa-user text-white text-xs"></i>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="font-semibold text-red-300">Customer</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="emotion-badge bg-red-500/20 text-red-300">
-                                            <i class="fas fa-angry mr-1"></i> Frustrated
-                                        </span>
-                                        <span class="text-xs text-gray-400">05:31</span>
-                                    </div>
-                                </div>
-                                <p class="text-gray-200 text-sm leading-relaxed">
-                                    "This is absolutely unacceptable! I've been charged twice for the same service and I've called three times already. Why hasn't this been resolved yet?"
-                                </p>
-                                <div class="mt-2 flex gap-2 text-xs">
-                                    <span class="px-2 py-0.5 bg-red-500/10 text-red-300 rounded">High Volume</span>
-                                    <span class="px-2 py-0.5 bg-orange-500/10 text-orange-300 rounded">Fast Speech</span>
-                                    <span class="px-2 py-0.5 bg-yellow-500/10 text-yellow-300 rounded">Elevated Pitch</span>
-                                </div>
-                            </div>
+                    <div class="p-2 rounded bg-slate-800/40 border-l-2 border-red-500">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold text-red-300">Customer</span>
+                            <span class="text-xs text-gray-500">05:39</span>
                         </div>
+                        <p class="text-sm text-gray-200">
+                            "This is unacceptable! I've been charged twice and I've called three times already."
+                        </p>
                     </div>
 
                     <!-- Agent Message -->
-                    <div class="transcript-item p-3 rounded-lg bg-slate-800/30 border-l-4 border-blue-500">
-                        <div class="flex items-start gap-3">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                                    <i class="fas fa-headset text-white text-xs"></i>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="font-semibold text-blue-300">Agent (You)</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="emotion-badge bg-blue-500/20 text-blue-300">
-                                            <i class="fas fa-smile mr-1"></i> Empathetic
-                                        </span>
-                                        <span class="text-xs text-gray-400">05:32</span>
-                                    </div>
-                                </div>
-                                <p class="text-gray-200 text-sm leading-relaxed">
-                                    "I completely understand your frustration, Michael, and I sincerely apologize for the inconvenience. Let me prioritize fixing this for you right now. I'm pulling up your account..."
-                                </p>
-                                <div class="mt-2 flex items-center gap-2">
-                                    <div class="flex gap-2 text-xs">
-                                        <span class="px-2 py-0.5 bg-green-500/10 text-green-300 rounded">✓ Acknowledgment</span>
-                                        <span class="px-2 py-0.5 bg-green-500/10 text-green-300 rounded">✓ Apology</span>
-                                        <span class="px-2 py-0.5 bg-green-500/10 text-green-300 rounded">✓ Action-oriented</span>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="p-2 rounded bg-slate-800/40 border-l-2 border-blue-500">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold text-blue-300">Agent (You)</span>
+                            <span class="text-xs text-gray-500">05:40</span>
                         </div>
+                        <p class="text-sm text-gray-200">
+                            "I completely understand your frustration, Michael. Let me prioritize fixing this for you right now."
+                        </p>
                     </div>
 
                     <!-- Customer Response -->
-                    <div class="transcript-item p-3 rounded-lg bg-slate-800/30 border-l-4 border-yellow-500">
-                        <div class="flex items-start gap-3">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
-                                    <i class="fas fa-user text-white text-xs"></i>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="font-semibold text-yellow-300">Customer</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="emotion-badge bg-yellow-500/20 text-yellow-300">
-                                            <i class="fas fa-meh mr-1"></i> Skeptical
-                                        </span>
-                                        <span class="text-xs text-gray-400">05:34</span>
-                                    </div>
-                                </div>
-                                <p class="text-gray-200 text-sm leading-relaxed">
-                                    "Well, I've heard that before. The last agent said they would fix it within 48 hours and nothing happened."
-                                </p>
-                                <div class="mt-2 flex gap-2 text-xs">
-                                    <span class="px-2 py-0.5 bg-yellow-500/10 text-yellow-300 rounded">Moderate Stress</span>
-                                    <span class="px-2 py-0.5 bg-blue-500/10 text-blue-300 rounded">Trust Issues</span>
-                                </div>
-                            </div>
+                    <div class="p-2 rounded bg-slate-800/40 border-l-2 border-yellow-500">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold text-yellow-300">Customer</span>
+                            <span class="text-xs text-gray-500">05:42</span>
                         </div>
+                        <p class="text-sm text-gray-200">
+                            "I've heard that before. The last agent said it would be fixed in 48 hours."
+                        </p>
                     </div>
 
-                    <!-- Typing Indicator -->
-                    <div class="transcript-item p-3 rounded-lg bg-slate-800/30 border-l-4 border-blue-500">
-                        <div class="flex items-start gap-3">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                                    <i class="fas fa-headset text-white text-xs"></i>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <span class="font-semibold text-blue-300">Agent (You)</span>
-                                <div class="flex items-center gap-1 mt-2">
-                                    <span class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></span>
-                                    <span class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
-                                    <span class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-                                    <span class="text-xs text-gray-400 ml-2">responding...</span>
-                                </div>
+                    <!-- Typing -->
+                    <div class="p-2 rounded bg-slate-800/40 border-l-2 border-blue-500">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-blue-300">Agent (You)</span>
+                            <div class="flex gap-1 ml-2">
+                                <div class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></div>
+                                <div class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                <div class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Call Controls -->
-            <div class="glass-panel p-4">
+            <!-- Compact Controls -->
+            <div class="glass-panel p-2">
                 <div class="flex items-center justify-between">
-                    <div class="flex gap-3">
-                        <button class="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition flex items-center gap-2">
-                            <i class="fas fa-pause"></i>
-                            Hold Call
+                    <div class="flex gap-2">
+                        <button class="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-semibold rounded text-sm transition flex items-center gap-2 border border-yellow-500/30">
+                            <i class="fas fa-pause text-xs"></i>
+                            Hold
                         </button>
-                        <button class="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition flex items-center gap-2 glow-blue">
-                            <i class="fas fa-arrow-up"></i>
-                            Escalate to Supervisor
+                        <button class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded text-sm transition flex items-center gap-2">
+                            <i class="fas fa-arrow-up text-xs"></i>
+                            Escalate
                         </button>
-                        <button class="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-semibold rounded-lg transition border border-purple-500/50 flex items-center gap-2">
-                            <i class="fas fa-user-plus"></i>
-                            Transfer Call
+                        <button class="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-semibold rounded text-sm transition border border-purple-500/30 flex items-center gap-2">
+                            <i class="fas fa-user-plus text-xs"></i>
+                            Transfer
                         </button>
                     </div>
-                    <div class="flex gap-3">
-                        <button class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition flex items-center gap-2">
-                            <i class="fas fa-microphone-slash"></i>
+                    <div class="flex gap-2">
+                        <button class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-semibold rounded text-sm transition border border-blue-500/30 flex items-center gap-2">
+                            <i class="fas fa-microphone-slash text-xs"></i>
                             Mute
                         </button>
-                        <button class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition flex items-center gap-2">
-                            <i class="fas fa-phone-slash"></i>
-                            End Call
+                        <button class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded text-sm transition flex items-center gap-2">
+                            <i class="fas fa-phone-slash text-xs"></i>
+                            End
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right Column: AI Suggestions & Knowledge Base -->
-        <div class="col-span-3 space-y-4">
-            <!-- AI Empathy Suggestions -->
-            <div class="glass-panel p-4" style="max-height: 600px; overflow-y: auto;">
-                <div class="flex items-center gap-2 mb-4">
-                    <i class="fas fa-lightbulb text-yellow-400 text-xl"></i>
-                    <h3 class="font-semibold text-lg">AI Coaching</h3>
-                    <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-xs ml-auto">
-                        <i class="fas fa-check-circle mr-1"></i> 3 Active
-                    </span>
+        <!-- Right Sidebar - AI Suggestions -->
+        <div class="col-span-3 flex flex-col gap-3 overflow-y-auto scrollbar-thin">
+            <!-- AI Coaching -->
+            <div class="glass-panel p-3">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fas fa-lightbulb text-yellow-400 text-sm"></i>
+                    <h3 class="font-semibold text-sm">AI Coaching</h3>
                 </div>
 
-                <div class="space-y-3 scrollbar-custom">
-                    <!-- Critical Suggestion -->
-                    <div class="suggestion-card p-3 rounded-lg">
+                <div class="space-y-2">
+                    <!-- Critical Alert -->
+                    <div class="p-2 rounded bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30">
                         <div class="flex items-start gap-2 mb-2">
-                            <div class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
+                            <div class="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-exclamation text-white text-xs"></i>
                             </div>
-                            <div>
-                                <div class="font-semibold text-red-300 text-sm">URGENT: De-escalation Needed</div>
-                                <div class="text-xs text-gray-400">Priority: Critical</div>
+                            <div class="flex-1">
+                                <div class="text-xs font-semibold text-red-300 mb-1">De-escalation Needed</div>
+                                <p class="text-xs text-gray-300 mb-2">
+                                    "I take full responsibility for getting this resolved today. Let me personally ensure this gets fixed right now."
+                                </p>
+                                <button class="w-full px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold">
+                                    Use This Phrase
+                                </button>
                             </div>
-                        </div>
-                        <p class="text-sm text-gray-200 mb-2">
-                            Customer frustration is escalating. Consider this approach:
-                        </p>
-                        <div class="bg-slate-900/50 p-2 rounded text-sm text-gray-300 mb-2 italic">
-                            "I hear your concern and I take full responsibility for getting this resolved today. Let me personally ensure this gets fixed right now..."
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="flex-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold">
-                                <i class="fas fa-copy mr-1"></i> Use This
-                            </button>
-                            <button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-gray-300 rounded text-xs">
-                                <i class="fas fa-times"></i>
-                            </button>
                         </div>
                     </div>
 
-                    <!-- Tone Adjustment -->
-                    <div class="suggestion-card p-3 rounded-lg">
-                        <div class="flex items-start gap-2 mb-2">
-                            <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                    <!-- Tone Guidance -->
+                    <div class="p-2 rounded bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30">
+                        <div class="flex items-start gap-2">
+                            <div class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-volume-down text-white text-xs"></i>
                             </div>
-                            <div>
-                                <div class="font-semibold text-blue-300 text-sm">Adjust Tone & Pacing</div>
-                                <div class="text-xs text-gray-400">Voice Coaching</div>
+                            <div class="flex-1">
+                                <div class="text-xs font-semibold text-blue-300 mb-1">Adjust Tone</div>
+                                <ul class="text-xs text-gray-300 space-y-1">
+                                    <li>• Slow speech by 15%</li>
+                                    <li>• Use warmer tone</li>
+                                    <li>• Lower volume slightly</li>
+                                </ul>
                             </div>
                         </div>
-                        <ul class="text-sm text-gray-200 space-y-1 mb-2">
-                            <li class="flex items-start gap-2">
-                                <i class="fas fa-arrow-down text-yellow-400 mt-1 text-xs"></i>
-                                <span>Slow down speech rate by 15%</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i class="fas fa-volume-down text-green-400 mt-1 text-xs"></i>
-                                <span>Lower voice volume slightly</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i class="fas fa-heart text-pink-400 mt-1 text-xs"></i>
-                                <span>Use warmer, reassuring tone</span>
-                            </li>
-                        </ul>
-                        <button class="w-full px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded text-xs font-semibold">
-                            <i class="fas fa-check mr-1"></i> Acknowledge
-                        </button>
                     </div>
 
-                    <!-- Empathy Phrase Suggestion -->
-                    <div class="suggestion-card p-3 rounded-lg">
+                    <!-- Trust Building -->
+                    <div class="p-2 rounded bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30">
                         <div class="flex items-start gap-2 mb-2">
-                            <div class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                            <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-heart text-white text-xs"></i>
                             </div>
-                            <div>
-                                <div class="font-semibold text-green-300 text-sm">Build Trust</div>
-                                <div class="text-xs text-gray-400">Empathy Building</div>
+                            <div class="flex-1">
+                                <div class="text-xs font-semibold text-green-300 mb-1">Build Trust</div>
+                                <p class="text-xs text-gray-300 mb-2">
+                                    "I'm going to stay on this call with you until we see the resolution. You have my word."
+                                </p>
+                                <button class="w-full px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold">
+                                    Use This Phrase
+                                </button>
                             </div>
-                        </div>
-                        <p class="text-sm text-gray-200 mb-2">
-                            Customer expressed past disappointment. Rebuild trust with:
-                        </p>
-                        <div class="bg-slate-900/50 p-2 rounded text-sm text-gray-300 mb-2 italic">
-                            "I understand you've been let down before. I'm going to stay on this call with you until we see the resolution reflected in your account. You have my word."
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="flex-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold">
-                                <i class="fas fa-copy mr-1"></i> Use This
-                            </button>
-                            <button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-gray-300 rounded text-xs">
-                                <i class="fas fa-edit"></i>
-                            </button>
                         </div>
                     </div>
 
-                    <!-- Knowledge Base Quick Access -->
-                    <div class="suggestion-card p-3 rounded-lg">
-                        <div class="flex items-start gap-2 mb-2">
-                            <div class="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
+                    <!-- Knowledge Base -->
+                    <div class="p-2 rounded bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30">
+                        <div class="flex items-start gap-2">
+                            <div class="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-book text-white text-xs"></i>
                             </div>
-                            <div>
-                                <div class="font-semibold text-purple-300 text-sm">Relevant KB Article</div>
-                                <div class="text-xs text-gray-400">Knowledge Base Match</div>
+                            <div class="flex-1">
+                                <div class="text-xs font-semibold text-purple-300 mb-1">KB Article</div>
+                                <p class="text-xs text-gray-300 mb-1">
+                                    Double Billing Resolution
+                                </p>
+                                <button class="text-xs text-purple-400 hover:text-purple-300">
+                                    View Protocol →
+                                </button>
                             </div>
                         </div>
-                        <p class="text-sm text-gray-200 mb-2">
-                            <strong>Double Billing Resolution Protocol</strong>
-                        </p>
-                        <p class="text-xs text-gray-400 mb-2">
-                            Standard process for duplicate charge reversals. Avg resolution time: 3-5 minutes.
-                        </p>
-                        <button class="w-full px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded text-xs font-semibold">
-                            <i class="fas fa-external-link-alt mr-1"></i> View Full Article
-                        </button>
-                    </div>
-
-                    <!-- Breathing Exercise -->
-                    <div class="suggestion-card p-3 rounded-lg border-cyan-500">
-                        <div class="flex items-start gap-2 mb-2">
-                            <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-wind text-white text-xs"></i>
-                            </div>
-                            <div>
-                                <div class="font-semibold text-cyan-300 text-sm">Agent Wellness Check</div>
-                                <div class="text-xs text-gray-400">Stress Management</div>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-200 mb-2">
-                            Detected elevated stress. Take a moment:
-                        </p>
-                        <div class="text-xs text-gray-300 mb-2">
-                            • Deep breath in (4 sec)<br>
-                            • Hold (4 sec)<br>
-                            • Exhale slowly (6 sec)
-                        </div>
-                        <button class="w-full px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded text-xs font-semibold">
-                            <i class="fas fa-spa mr-1"></i> Start Exercise
-                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Performance Metrics -->
-            <div class="glass-panel p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <i class="fas fa-chart-line text-green-400"></i>
-                    <h3 class="font-semibold text-lg">This Call</h3>
-                </div>
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div class="metric-card p-3 rounded-lg">
-                        <div class="text-gray-400 text-xs">Empathy Score</div>
-                        <div class="text-2xl font-bold text-green-400">8.2</div>
-                        <div class="text-xs text-green-400">+0.5 from avg</div>
-                    </div>
-                    <div class="metric-card p-3 rounded-lg">
+            <!-- Quick Metrics -->
+            <div class="glass-panel p-3">
+                <div class="text-xs font-semibold text-gray-400 mb-2">This Call</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="text-center p-2 bg-slate-800/30 rounded">
                         <div class="text-gray-400 text-xs">Response Quality</div>
-                        <div class="text-2xl font-bold text-blue-400">92%</div>
-                        <div class="text-xs text-blue-400">Excellent</div>
+                        <div class="text-lg font-bold text-blue-400">92%</div>
                     </div>
-                    <div class="metric-card p-3 rounded-lg">
-                        <div class="text-gray-400 text-xs">Suggestions Used</div>
-                        <div class="text-2xl font-bold text-purple-400">7/9</div>
-                        <div class="text-xs text-purple-400">78% adoption</div>
-                    </div>
-                    <div class="metric-card p-3 rounded-lg">
+                    <div class="text-center p-2 bg-slate-800/30 rounded">
                         <div class="text-gray-400 text-xs">Predicted CSAT</div>
-                        <div class="text-2xl font-bold text-yellow-400">8.5</div>
-                        <div class="text-xs text-yellow-400">High satisfaction</div>
+                        <div class="text-lg font-bold text-yellow-400">8.5</div>
                     </div>
                 </div>
             </div>
@@ -791,159 +404,22 @@
     </div>
 
     <script>
-        // Empathy Meter Chart
-        const empathyCtx = document.getElementById('empathyChart').getContext('2d');
-        const empathyChart = new Chart(empathyCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Empathy Score', 'Remaining'],
-                datasets: [{
-                    data: [8.2, 1.8],
-                    backgroundColor: [
-                        'rgba(34, 197, 94, 0.8)',
-                        'rgba(30, 41, 59, 0.3)'
-                    ],
-                    borderColor: [
-                        'rgba(34, 197, 94, 1)',
-                        'rgba(59, 130, 246, 0.2)'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '75%',
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        enabled: false
-                    }
-                }
-            }
-        });
-
-        // Emotion Timeline Chart
-        const timelineCtx = document.getElementById('emotionTimeline').getContext('2d');
-        const emotionTimeline = new Chart(timelineCtx, {
-            type: 'line',
-            data: {
-                labels: ['0:00', '1:00', '2:00', '3:00', '4:00', '5:00', '5:34'],
-                datasets: [
-                    {
-                        label: 'Frustration',
-                        data: [30, 45, 60, 70, 75, 72, 75],
-                        borderColor: 'rgb(239, 68, 68)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Confusion',
-                        data: [20, 35, 40, 45, 42, 40, 42],
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Hopefulness',
-                        data: [10, 8, 15, 18, 22, 25, 28],
-                        borderColor: 'rgb(34, 197, 94)',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'bottom',
-                        labels: {
-                            color: '#94a3b8',
-                            font: {
-                                size: 10
-                            },
-                            padding: 10,
-                            usePointStyle: true
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: {
-                            color: 'rgba(59, 130, 246, 0.1)'
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: {
-                                size: 10
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(59, 130, 246, 0.1)'
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: {
-                                size: 10
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Simulate real-time updates
+        // Simple real-time simulation
         setInterval(() => {
             // Update empathy score
-            const newScore = 7 + Math.random() * 2;
-            empathyChart.data.datasets[0].data = [newScore, 10 - newScore];
-            empathyChart.update();
-
-            // Update emotion timeline
-            const lastFrustration = emotionTimeline.data.datasets[0].data.slice(-1)[0];
-            const lastConfusion = emotionTimeline.data.datasets[1].data.slice(-1)[0];
-            const lastHope = emotionTimeline.data.datasets[2].data.slice(-1)[0];
-
-            emotionTimeline.data.datasets[0].data.push(lastFrustration + (Math.random() - 0.5) * 5);
-            emotionTimeline.data.datasets[1].data.push(lastConfusion + (Math.random() - 0.5) * 5);
-            emotionTimeline.data.datasets[2].data.push(lastHope + (Math.random() - 0.5) * 5);
-
-            if (emotionTimeline.data.datasets[0].data.length > 15) {
-                emotionTimeline.data.datasets.forEach(dataset => dataset.data.shift());
-                emotionTimeline.data.labels.shift();
-                const lastTime = emotionTimeline.data.labels.slice(-1)[0];
-                const [min, sec] = lastTime.split(':').map(Number);
-                const newSec = sec + 5;
-                emotionTimeline.data.labels.push(`${min}:${newSec.toString().padStart(2, '0')}`);
-            }
-
-            emotionTimeline.update();
-        }, 5000);
-
-        // Add button interactions
-        document.querySelectorAll('button').forEach(button => {
-            button.addEventListener('click', function(e) {
-                if (this.textContent.includes('Use This') || this.textContent.includes('Acknowledge')) {
-                    this.classList.add('opacity-50');
-                    this.innerHTML = '<i class="fas fa-check mr-1"></i> Applied';
-                    setTimeout(() => {
-                        this.classList.remove('opacity-50');
-                    }, 2000);
-                }
+            const score = (7 + Math.random() * 2).toFixed(1);
+            document.querySelectorAll('.text-2xl.font-bold.text-green-400').forEach(el => {
+                if (el.textContent.length < 5) el.textContent = score;
             });
-        });
+
+            // Update emotion percentages
+            const emotions = document.querySelectorAll('.emotion-indicator').length > 0;
+            if (emotions) {
+                const frustration = Math.floor(70 + Math.random() * 10);
+                const confusion = Math.floor(40 + Math.random() * 10);
+                const hope = Math.floor(25 + Math.random() * 10);
+            }
+        }, 5000);
     </script>
 </body>
 </html>
