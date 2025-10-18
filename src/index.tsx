@@ -236,30 +236,51 @@ Respond ONLY with valid JSON (no markdown, no explanation):
       let predictedCSAT = 5.0  // Neutral CSAT (5/10 scale)
       
       if (voiceMetrics) {
-        // High volume + high pitch + fast speech = stressed/upset
-        if (voiceMetrics.volume > 60 && voiceMetrics.pitch > 230) {
+        // MORE SENSITIVE voice analysis - detect subtle changes
+        
+        // Very high stress indicators (shouting/very upset)
+        if (voiceMetrics.volume > 70 || voiceMetrics.pitch > 250) {
+          sentiment = 0.1
+          stress = 'High'
+          empathy = 2.5
+          quality = 3.5
+          predictedCSAT = 3.0
+        }
+        // High stress (loud + high pitch + fast speech)
+        else if (voiceMetrics.volume > 55 && voiceMetrics.pitch > 220) {
           sentiment = 0.2
           stress = 'High'
           empathy = 3.0
           quality = 4.0
           predictedCSAT = 3.5
-        } else if (voiceMetrics.volume > 50 && voiceMetrics.pitch > 200) {
-          // Moderately stressed
+        }
+        // Elevated stress (moderately loud OR high pitch)
+        else if (voiceMetrics.volume > 50 || voiceMetrics.pitch > 200) {
           sentiment = 0.35
           stress = 'Medium-High'
           empathy = 4.0
           quality = 4.5
           predictedCSAT = 4.5
-        } else if (voiceMetrics.volume < 35 && voiceMetrics.energy < 35) {
-          // Low volume + low energy = calm or satisfied
-          sentiment = 0.65
+        }
+        // Slightly elevated (any sign of stress)
+        else if (voiceMetrics.volume > 45 || voiceMetrics.pitch > 180 || voiceMetrics.speechRate > 4) {
+          sentiment = 0.45
+          stress = 'Medium'
+          empathy = 4.5
+          quality = 5.0
+          predictedCSAT = 5.0
+        }
+        // Very calm (low volume + low energy)
+        else if (voiceMetrics.volume < 30 && voiceMetrics.energy < 30) {
+          sentiment = 0.7
           stress = 'Low'
           empathy = 6.5
           quality = 6.5
           predictedCSAT = 7.0
-        } else if (voiceMetrics.volume < 45 && voiceMetrics.energy < 50) {
-          // Slightly calm
-          sentiment = 0.55
+        }
+        // Calm (low volume OR low energy)
+        else if (voiceMetrics.volume < 40 || voiceMetrics.energy < 40) {
+          sentiment = 0.6
           stress = 'Low-Medium'
           empathy = 5.5
           quality = 5.5
@@ -276,7 +297,10 @@ Respond ONLY with valid JSON (no markdown, no explanation):
         'unacceptable', 'ridiculous', 'disgrace', 'incompetent', 'nightmare',
         'scam', 'fraud', 'lie', 'lying', 'liar',
         'waste of time', 'waste of money', 'rip off', 'ripoff',
-        'never again', 'disgusted', 'appalled', 'outraged'
+        'never again', 'disgusted', 'appalled', 'outraged',
+        'sick of', 'fed up', 'had enough', 'enough of this', 'can\'t believe',
+        'ridiculous', 'joke', 'absurd', 'insane', 'crazy',
+        'worst experience', 'horrible service', 'terrible service'
       ]
       
       // Moderate negative indicators (frustration/disappointment)
@@ -285,13 +309,22 @@ Respond ONLY with valid JSON (no markdown, no explanation):
         'unhappy', 'dissatisfied', 'unsatisfied', 'not happy', 'not satisfied',
         'problem', 'issue', 'broken', 'doesn\'t work', 'not working', 'failed',
         'wrong', 'mistake', 'error', 'bad', 'poor', 'unfair',
-        'waited too long', 'still waiting', 'no response', 'no help', 'not helpful'
+        'waited too long', 'still waiting', 'no response', 'no help', 'not helpful',
+        'not good', 'not right', 'not okay', 'not acceptable', 'not cool',
+        'annoying', 'bothered', 'troubled', 'concerned', 'worried',
+        'difficulty', 'struggling', 'can\'t', 'won\'t', 'doesn\'t',
+        'never', 'always', 'every time', 'again', 'still',
+        'why', 'how come', 'what\'s going on', 'what\'s the deal'
       ]
       
       // Distrust/doubt indicators (lack of confidence)
       const distrustIndicators = [
         'honestly', 'frankly', 'to be honest', 'let\'s be real', 'seriously',
-        'doubt', 'questionable', 'suspicious', 'concerned', 'worried'
+        'doubt', 'questionable', 'suspicious', 'concerned', 'worried',
+        'not sure', 'don\'t think', 'don\'t know', 'hard to believe',
+        'yeah right', 'sure', 'whatever', 'fine', 'okay fine',
+        'i guess', 'suppose', 'allegedly', 'supposedly',
+        'skeptical', 'doubtful', 'uncertain', 'unconvinced'
       ]
       
       // Genuine positive indicators (must show actual satisfaction/praise)
