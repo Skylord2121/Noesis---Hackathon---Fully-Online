@@ -217,6 +217,27 @@
             background: rgba(226, 232, 240, 0.9) !important;
         }
 
+        /* Light mode mobile header fixes */
+        @media (max-width: 768px) {
+            body.light-mode .mobile-header-right {
+                background: rgba(241, 245, 249, 0.6) !important;
+            }
+
+            body.light-mode .mobile-header-right > div {
+                background: rgba(255, 255, 255, 0.8) !important;
+                border: 1px solid rgba(59, 130, 246, 0.2) !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            }
+
+            body.light-mode .mobile-header-right .text-blue-400 {
+                color: #2563eb !important;
+            }
+
+            body.light-mode .mobile-header-right .text-blue-300 {
+                color: #3b82f6 !important;
+            }
+        }
+
         .theme-toggle {
             cursor: pointer;
             transition: all 0.3s ease;
