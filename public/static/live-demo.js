@@ -10,6 +10,7 @@ let customerHasSpoken = false; // Track if customer has spoken yet
 // Live mode state
 let recognition = null; // Speech recognition instance
 let isListening = false; // Track if actively listening
+let isPaused = false; // Track if session is paused
 let ollamaConnected = false; // Track if Ollama is connected and ready
 let audioContext = null; // Web Audio API context
 let analyser = null; // Audio analyser for spectrum
@@ -726,15 +727,18 @@ function initSpeechRecognition() {
             
             customerHasSpoken = true;
             
-            // Trigger AI analysis for metrics
-            setTimeout(() => {
-                analyzeCustomerMessage(capitalizedTranscript, 'Customer', 'Amazon Agent');
-            }, 500);
-            
-            // AI agent responds
-            setTimeout(() => {
-                getAgentResponse(capitalizedTranscript);
-            }, 1500);
+            // Only process if not paused
+            if (!isPaused) {
+                // Trigger AI analysis for metrics
+                setTimeout(() => {
+                    analyzeCustomerMessage(capitalizedTranscript, 'Customer', 'Amazon Agent');
+                }, 500);
+                
+                // AI agent responds
+                setTimeout(() => {
+                    getAgentResponse(capitalizedTranscript);
+                }, 1500);
+            }
         }
     };
     
@@ -776,7 +780,14 @@ async function initAudioSpectrum() {
 }
 
 function animateSpectrum() {
-    if (!analyser) return;
+    if (!analyser || !isListening) {
+        // Stop animation if not listening
+        const bars = document.querySelectorAll('.spectrum-bar');
+        bars.forEach(bar => {
+            bar.style.height = '10%'; // Reset to minimum
+        });
+        return;
+    }
     
     analyser.getByteFrequencyData(dataArray);
     
@@ -787,16 +798,21 @@ function animateSpectrum() {
         bar.style.height = `${Math.max(10, height)}%`;
     });
     
-    animationFrameId = requestAnimationFrame(animateSpectrum);
+    if (isListening) {
+        animationFrameId = requestAnimationFrame(animateSpectrum);
+    }
 }
 
 // Start/Stop live session
 function toggleLiveSession() {
     isListening = !isListening;
+    isPaused = false; // Reset pause state
     
     const modeIndicator = document.getElementById('mode-indicator');
-    const modeBtnText = document.getElementById('mode-btn-text');
-    const toggleBtn = document.getElementById('toggle-mode-btn');
+    const startStopBtn = document.getElementById('start-stop-btn');
+    const startStopIcon = document.getElementById('start-stop-icon');
+    const startStopText = document.getElementById('start-stop-text');
+    const pauseResumeBtn = document.getElementById('pause-resume-btn');
     
     if (isListening) {
         // Start live session
@@ -829,8 +845,13 @@ function toggleLiveSession() {
                 `;
                 modeIndicator.className = 'flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/30 rounded-full';
                 
-                modeBtnText.textContent = 'Stop Session';
-                toggleBtn.className = 'px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-semibold rounded border border-red-500/30 transition';
+                // Update start/stop button
+                startStopIcon.className = 'fas fa-stop text-base';
+                startStopText.textContent = 'Stop Session';
+                startStopBtn.className = 'px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg text-sm transition flex items-center gap-2 shadow-lg';
+                
+                // Show pause button
+                pauseResumeBtn.classList.remove('hidden');
                 
                 showToast('Live session started - speak now', 'success');
             } catch (error) {
@@ -850,7 +871,11 @@ function toggleLiveSession() {
         
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
         }
+        
+        // Stop spectrum animation
+        animateSpectrum(); // Call once to reset bars
         
         callStartTime = null;
         
@@ -860,10 +885,69 @@ function toggleLiveSession() {
         `;
         modeIndicator.className = 'flex items-center gap-2 px-2 py-1 bg-gray-500/10 border border-gray-500/30 rounded-full';
         
-        modeBtnText.textContent = 'Start Session';
-        toggleBtn.className = 'px-3 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs font-semibold rounded border border-green-500/30 transition';
+        // Update start/stop button
+        startStopIcon.className = 'fas fa-microphone text-base';
+        startStopText.textContent = 'Start Session';
+        startStopBtn.className = 'px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg text-sm transition flex items-center gap-2 shadow-lg';
+        
+        // Hide pause button
+        pauseResumeBtn.classList.add('hidden');
         
         showToast('Live session stopped', 'success');
+    }
+}
+
+// Pause/Resume functionality
+function togglePause() {
+    isPaused = !isPaused;
+    
+    const pauseResumeBtn = document.getElementById('pause-resume-btn');
+    const pauseResumeIcon = document.getElementById('pause-resume-icon');
+    const pauseResumeText = document.getElementById('pause-resume-text');
+    const modeIndicator = document.getElementById('mode-indicator');
+    
+    if (isPaused) {
+        // Pause the session
+        if (recognition) {
+            recognition.stop();
+        }
+        
+        // Update pause button to resume
+        pauseResumeIcon.className = 'fas fa-play text-base';
+        pauseResumeText.textContent = 'Resume';
+        pauseResumeBtn.className = 'px-6 py-3 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-semibold rounded-lg text-sm transition flex items-center gap-2 border border-green-500/30';
+        
+        // Update indicator
+        modeIndicator.innerHTML = `
+            <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
+            <span class="text-xs font-semibold text-yellow-400 uppercase tracking-wide">Paused</span>
+        `;
+        modeIndicator.className = 'flex items-center gap-2 px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full';
+        
+        showToast('Session paused', 'success');
+    } else {
+        // Resume the session
+        if (recognition && isListening) {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.log('Recognition already started');
+            }
+        }
+        
+        // Update pause button back to pause
+        pauseResumeIcon.className = 'fas fa-pause text-base';
+        pauseResumeText.textContent = 'Pause';
+        pauseResumeBtn.className = 'px-6 py-3 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-semibold rounded-lg text-sm transition flex items-center gap-2 border border-yellow-500/30';
+        
+        // Update indicator back to live
+        modeIndicator.innerHTML = `
+            <div class="w-1.5 h-1.5 bg-red-500 rounded-full live-pulse"></div>
+            <span class="text-xs font-semibold text-red-400 uppercase tracking-wide">Live</span>
+        `;
+        modeIndicator.className = 'flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/30 rounded-full';
+        
+        showToast('Session resumed', 'success');
     }
 }
 
@@ -945,6 +1029,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     qualityScore.textContent = '--';
     predictedCsat.textContent = '--';
     callTime.textContent = '00:00';
+    
+    // Stop spectrum bars initially (set to minimum height)
+    const bars = document.querySelectorAll('.spectrum-bar');
+    bars.forEach(bar => {
+        bar.style.height = '10%';
+        bar.style.animation = 'none'; // Stop CSS animation
+    });
     
     // Load saved theme
     const savedTheme = localStorage.getItem('theme');
@@ -1148,3 +1239,4 @@ window.closeSettings = closeSettings;
 window.saveSettings = saveSettings;
 window.testOllamaConnection = testOllamaConnection;
 window.toggleLiveSession = toggleLiveSession;
+window.togglePause = togglePause;
