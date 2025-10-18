@@ -4,6 +4,10 @@ import { serveStatic } from 'hono/cloudflare-workers'
 
 const app = new Hono()
 
+// In-memory session storage (for local development)
+// In production, use Cloudflare KV or Durable Objects
+const sessions = new Map<string, Array<any>>()
+
 // Enable CORS for API routes
 app.use('/api/*', cors())
 
@@ -410,34 +414,16 @@ app.post('/api/session/message', async (c) => {
       voiceMetrics: voiceMetrics || null  // Include voice analysis data
     }
     
-    // Store in KV (for production)
-    // For MVP, we'll use in-memory storage via Workers Cache API
-    const cacheKey = new Request(`https://internal.cache/${sessionId}/messages`)
-    const cache = caches.default
-    
-    // Get existing messages
-    let messages = []
-    try {
-      const cachedResponse = await cache.match(cacheKey)
-      if (cachedResponse) {
-        const data = await cachedResponse.json()
-        messages = data.messages || []
-      }
-    } catch (e) {
-      console.log('No cached messages found')
+    // Use in-memory storage for local development
+    if (!sessions.has(sessionId)) {
+      sessions.set(sessionId, [])
     }
     
-    // Add new message
+    const messages = sessions.get(sessionId)!
     messages.push(message)
     
-    // Store back in cache
-    const newResponse = new Response(JSON.stringify({ messages }), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'max-age=3600'
-      }
-    })
-    await cache.put(cacheKey, newResponse)
+    console.log(`[SESSION ${sessionId}] New ${role} message: "${content.substring(0, 50)}..."`)
+    console.log(`[SESSION ${sessionId}] Total messages: ${messages.length}`)
     
     return c.json({ success: true, message })
   } catch (error) {
@@ -456,23 +442,13 @@ app.get('/api/session/messages', async (c) => {
       return c.json({ success: false, error: 'Session ID required' }, 400)
     }
     
-    // Get messages from cache
-    const cacheKey = new Request(`https://internal.cache/${sessionId}/messages`)
-    const cache = caches.default
-    
-    let messages = []
-    try {
-      const cachedResponse = await cache.match(cacheKey)
-      if (cachedResponse) {
-        const data = await cachedResponse.json()
-        messages = data.messages || []
-      }
-    } catch (e) {
-      console.log('No cached messages found')
-    }
+    // Get messages from in-memory storage
+    const messages = sessions.get(sessionId) || []
     
     // Filter messages newer than 'since' timestamp
     const newMessages = messages.filter(msg => msg.timestamp > since)
+    
+    console.log(`[SESSION ${sessionId}] Fetching messages since ${since}, found ${newMessages.length} new messages`)
     
     return c.json({ success: true, messages: newMessages })
   } catch (error) {
