@@ -12,7 +12,10 @@
       "id": "placeholder",
       "preview_id": "placeholder"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },

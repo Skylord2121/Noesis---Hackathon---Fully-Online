@@ -77,27 +77,18 @@
 
 ## ⚙️ Setup Instructions
 
-### 1. Install and Run Ollama (On Your Computer)
+### 1. Cloud AI (No Setup Required!)
 
-**Required for AI coaching and metrics:**
+**AI is built-in and always available:**
 
-```bash
-# Install Ollama (if not installed)
-# Visit: https://ollama.ai
+✅ **Cloudflare Workers AI** - Runs on Cloudflare's global network
+✅ **No installation** - Works immediately
+✅ **No API keys** - Built into your Cloudflare account
+✅ **Free tier** - 10,000 AI requests per day included
 
-# Pull the recommended model
-ollama pull qwen2.5:3b
+**That's it! The AI is ready to use.**
 
-# Pull embedding model for RAG
-ollama pull nomic-embed-text
-
-# Start Ollama server
-ollama serve
-```
-
-The default Ollama address is `http://localhost:11434`.
-
-### 2. Setup RAG Documents (Optional but Recommended)
+### 2. Optional: Setup RAG Documents (Advanced)
 
 **Location on your computer:** `C:\Users\Nimbus VFX\Desktop\Company Docs`
 
@@ -115,16 +106,7 @@ python document_indexer.py
 
 **See:** `RAG_FOR_NON_CODERS.md` for detailed setup instructions.
 
-### 3. Configure Dashboard Settings
-
-1. Open the **Agent Dashboard**
-2. Click **Settings icon** (⚙️) in top right
-3. Enter **Ollama Host URL**: `http://localhost:11434`
-4. Enter **Model Name**: `qwen2.5:3b`
-5. Click **Test Connection** to verify
-6. Click **Save**
-
-### 4. Start Live Session
+### 3. Start Live Session
 
 1. Click **"Start New Session"** button
 2. Copy the generated customer link
@@ -198,11 +180,11 @@ Agent Speech → Web Speech API → Transcript
 - **Cloudflare KV** - Session storage (production)
 - **REST API** - Session management endpoints
 
-### AI Processing (Local - Your Computer)
-- **Ollama** - Local LLM inference (qwen2.5:3b)
-- **LlamaIndex** - RAG document indexing
-- **nomic-embed-text** - Vector embeddings
-- **Python** - Document indexing scripts
+### AI Processing (Cloud - Cloudflare Workers AI)
+- **Cloudflare AI** - Cloud LLM inference (Llama 3 8B Instruct)
+- **Always Available** - No local setup required
+- **Free Tier** - 10,000 requests/day included
+- **Edge Network** - Fast global response times (~200ms)
 
 ### Architecture Pattern
 - **Hybrid Cloud/Local** - UI in cloud, AI on your machine

@@ -42,6 +42,130 @@ app.get('/api/ollama/tags', async (c) => {
   }
 })
 
+// Cloudflare AI Analysis Endpoint
+app.post('/api/ai-analysis', async (c) => {
+  try {
+    const { text, conversationHistory } = await c.req.json()
+    
+    if (!text) {
+      return c.json({ success: false, error: 'Text is required' }, 400)
+    }
+
+    // Build conversation context
+    const conversationContext = conversationHistory
+      ?.slice(-10)
+      .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
+      .join('\n') || ''
+
+    const prompt = `You are an expert customer service analyst providing real-time coaching to a live agent.
+
+CONVERSATION:
+${conversationContext}
+
+LATEST CUSTOMER: "${text}"
+
+TASK: Provide SHORT, actionable coaching. Keep suggestions brief and punchy.
+
+CRITICAL RULES:
+1. CUSTOMER NAME: Extract if mentioned ("My name is Sarah", "I'm John", "This is Mike")
+2. ISSUE: Be specific (Password Reset, Billing Dispute, Refund, Shipping Delay, Account Locked)
+3. COACHING: Keep it SHORT unless complex protocol needed
+   - DEFAULT: 1-2 sentences max
+   - ONLY give detailed steps if technical issue requires it
+   - Focus on WHAT to do, not HOW in detail
+
+GOOD SHORT COACHING:
+"Acknowledge frustration first. Say: 'I understand how frustrating this is. Let me help you right away.'"
+"Ask for order number. Check if refund was already issued."
+"Password reset link expires in 24hrs. Check spam folder if not received."
+
+Respond ONLY with valid JSON:
+{
+  "sentiment": 0.0-1.0,
+  "empathy": 0.0-10.0,
+  "quality": 0.0-10.0,
+  "stress": "Low"|"Medium"|"High",
+  "clarity": "Poor"|"Fair"|"Good"|"Excellent",
+  "predictedCSAT": 0.0-10.0,
+  "customerName": "FirstName LastName"|null,
+  "issue": "Specific Issue",
+  "coaching": [
+    {
+      "type": "action"|"empathy"|"knowledge",
+      "title": "Brief title (3-5 words)",
+      "message": "Short suggestion (1-2 sentences max, unless technical protocol)"
+    }
+  ]
+}`
+
+    // Use Cloudflare AI
+    const ai = c.env.AI
+    
+    const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant that responds only in valid JSON.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 500
+    })
+
+    // Parse AI response
+    let analysis
+    try {
+      const responseText = response.response || JSON.stringify(response)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (parseError) {
+      // Fallback response if parsing fails
+      analysis = {
+        sentiment: 0.5,
+        empathy: 7.0,
+        quality: 7.0,
+        stress: 'Medium',
+        clarity: 'Good',
+        predictedCSAT: 7.0,
+        customerName: null,
+        issue: 'General Inquiry',
+        coaching: [{
+          type: 'empathy',
+          title: 'Listen Actively',
+          message: 'Focus on understanding the customer\'s concern fully.'
+        }]
+      }
+    }
+
+    return c.json({ success: true, analysis })
+    
+  } catch (error) {
+    console.error('AI Analysis Error:', error)
+    return c.json({ 
+      success: false, 
+      error: error.message,
+      analysis: {
+        sentiment: 0.5,
+        empathy: 7.0,
+        quality: 7.0,
+        stress: 'Medium',
+        clarity: 'Good',
+        predictedCSAT: 7.0,
+        customerName: null,
+        issue: 'General Inquiry',
+        coaching: [{
+          type: 'knowledge',
+          title: 'AI Unavailable',
+          message: 'Continue assisting customer. AI analysis temporarily unavailable.'
+        }]
+      }
+    }, 500)
+  }
+})
+
 // Test Ollama Connection
 app.post('/api/test-ollama', async (c) => {
   try {

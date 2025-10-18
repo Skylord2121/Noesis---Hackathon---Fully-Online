@@ -19,8 +19,8 @@ let agentRecognition = null;
 let isAgentSpeaking = false;
 let isAgentRecognitionActive = false;
 
-// Ollama connection
-let ollamaConnected = false;
+// AI connection (now using Cloudflare AI - always available)
+let ollamaConnected = true; // Always true since it's cloud-based
 
 // Call timer
 let callStartTime = null;
@@ -484,82 +484,24 @@ async function processWithAI(text) {
     }
 }
 
-// Get AI analysis via Ollama
+// Get AI analysis via Cloudflare AI (cloud-based)
 async function getAIAnalysis(text) {
-    const ollamaHost = localStorage.getItem('ollamaHost') || 'http://localhost:11434';
-    const ollamaModel = localStorage.getItem('ollamaModel') || 'qwen2.5:3b';
-    
-    const conversationContext = conversationHistory
-        .slice(-10)
-        .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
-        .join('\n');
-    
-    const prompt = `You are an expert customer service analyst providing real-time coaching to a live agent.
-
-CONVERSATION:
-${conversationContext}
-
-LATEST CUSTOMER: "${text}"
-
-TASK: Provide SHORT, actionable coaching. Keep suggestions brief and punchy.
-
-CRITICAL RULES:
-1. CUSTOMER NAME: Extract if mentioned ("My name is Sarah", "I'm John", "This is Mike")
-2. ISSUE: Be specific (Password Reset, Billing Dispute, Refund, Shipping Delay, Account Locked)
-3. COACHING: Keep it SHORT unless complex protocol needed
-   - DEFAULT: 1-2 sentences max
-   - ONLY give detailed steps if technical issue requires it
-   - Focus on WHAT to do, not HOW in detail
-
-GOOD SHORT COACHING:
-"Acknowledge frustration first. Say: 'I understand how frustrating this is. Let me help you right away.'"
-"Ask for order number. Check if refund was already issued."
-"Password reset link expires in 24hrs. Check spam folder if not received."
-
-BAD (TOO LONG):
-"Guide customer through: 1) Go to amazon.com/ap/forgotpassword, 2) Enter email address that's registered with account, 3) Wait for email, 4) Check spam folder if not in inbox within 5 minutes, 5) Click reset link..."
-
-Respond ONLY with valid JSON:
-{
-  "sentiment": 0.0-1.0,
-  "empathy": 0.0-10.0,
-  "quality": 0.0-10.0,
-  "stress": "Low"|"Medium"|"High",
-  "clarity": "Poor"|"Fair"|"Good"|"Excellent",
-  "predictedCSAT": 0.0-10.0,
-  "customerName": "FirstName LastName"|null,
-  "issue": "Specific Issue",
-  "coaching": [
-    {
-      "type": "action"|"empathy"|"knowledge",
-      "title": "Brief title (3-5 words)",
-      "message": "Short suggestion (1-2 sentences max, unless technical protocol)"
-    }
-  ]
-}`;
-    
     try {
-        const response = await fetch(`${ollamaHost}/api/generate`, {
+        const response = await fetch('/api/ai-analysis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: ollamaModel,
-                prompt: prompt,
-                stream: false,
-                temperature: 0.2,
-                num_predict: 300
+                text: text,
+                conversationHistory: conversationHistory
             })
         });
         
-        if (!response.ok) throw new Error('Ollama request failed');
+        if (!response.ok) throw new Error('AI analysis request failed');
         
         const data = await response.json();
         
-        // Try to extract JSON from response
-        let jsonMatch = data.response.match(/\{[\s\S]*\}/);
-        
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
+        if (data.success && data.analysis) {
+            const parsed = data.analysis;
             
             // Post-process: don't lock name/issue on first message if not confident
             if (conversationHistory.length <= 2) {
@@ -573,11 +515,12 @@ Respond ONLY with valid JSON:
             
             return parsed;
         }
+        
+        return null;
     } catch (error) {
         console.error('AI analysis error:', error);
+        return null;
     }
-    
-    return null;
 }
 
 // UI update functions (simplified versions from live-demo.js)
@@ -715,38 +658,40 @@ function closeSettings() {
 }
 
 function saveSettings() {
-    const ollamaHost = document.getElementById('ollama-host').value;
-    const ollamaModel = document.getElementById('ollama-model').value;
-    
-    localStorage.setItem('ollamaHost', ollamaHost);
-    localStorage.setItem('ollamaModel', ollamaModel);
-    
     showToast('Settings saved!', 'success');
     closeSettings();
 }
 
-async function testOllamaConnection() {
-    const ollamaHost = document.getElementById('ollama-host').value || 'http://localhost:11434';
+async function testAIConnection() {
     const btn = document.getElementById('test-connection-btn');
     const status = document.getElementById('connection-status');
+    
+    if (!btn || !status) return;
     
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
     
     try {
-        const response = await fetch(`${ollamaHost}/api/tags`);
+        const response = await fetch('/api/ai-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: 'Test connection',
+                conversationHistory: []
+            })
+        });
+        
         if (response.ok) {
             ollamaConnected = true;
             status.className = 'p-3 rounded-lg text-xs bg-green-500/20 border border-green-500/30 text-green-300';
-            status.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Connected successfully!';
+            status.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Cloud AI connected successfully!';
             status.classList.remove('hidden');
         } else {
             throw new Error('Connection failed');
         }
     } catch (error) {
-        ollamaConnected = false;
         status.className = 'p-3 rounded-lg text-xs bg-red-500/20 border border-red-500/30 text-red-300';
-        status.innerHTML = '<i class="fas fa-times-circle mr-2"></i>Connection failed. Is Ollama running?';
+        status.innerHTML = '<i class="fas fa-times-circle mr-2"></i>Cloud AI connection failed. Please try again.';
         status.classList.remove('hidden');
     }
     
@@ -785,20 +730,10 @@ function openDocumentsFolder() {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', () => {
-    // Load settings
-    const ollamaHost = localStorage.getItem('ollamaHost') || 'http://localhost:11434';
-    const ollamaModel = localStorage.getItem('ollamaModel') || 'qwen2.5:3b';
-    
-    const ollamaHostInput = document.getElementById('ollama-host');
-    const ollamaModelInput = document.getElementById('ollama-model');
-    
-    if (ollamaHostInput) ollamaHostInput.value = ollamaHost;
-    if (ollamaModelInput) ollamaModelInput.value = ollamaModel;
-    
-    // Test Ollama connection on load
-    testOllamaConnection();
+    // AI is always connected (cloud-based)
+    ollamaConnected = true;
     
     // Show welcome message
-    console.log('Agent Dashboard Ready');
+    console.log('Agent Dashboard Ready (Cloud AI Enabled)');
     console.log('Click "Start New Session" to begin');
 });
