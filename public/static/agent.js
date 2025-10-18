@@ -498,14 +498,11 @@ async function processWithAI(text, voiceMetrics = null) {
                 updatePredictedCSAT(analysis.predictedCSAT);
             }
             
-            // Update customer info - only lock name when explicitly mentioned
-            if (analysis.customerName && !customerNameFixed) {
-                // Check if customer actually introduced themselves
-                const recentMessages = conversationHistory.slice(-3).map(m => m.content.toLowerCase()).join(' ');
-                if (recentMessages.includes('name') || recentMessages.includes('i\'m') || recentMessages.includes('this is')) {
-                    updateCustomerInfo(analysis);
-                    customerNameFixed = true;
-                }
+            // Update customer info - lock name once detected
+            if (analysis.customerName && !customerNameFixed && analysis.customerName !== 'Unknown') {
+                console.log('[AGENT] Customer name detected:', analysis.customerName);
+                updateCustomerInfo(analysis);
+                customerNameFixed = true;
             }
             
             // Update issue - allow it to update as conversation evolves (don't lock it)

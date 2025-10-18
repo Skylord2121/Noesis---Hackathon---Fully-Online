@@ -396,6 +396,10 @@
         };
         let lastSpeechTime = 0;
         let speechSegments = [];
+        
+        // Agent message polling
+        let lastAgentMessageTimestamp = 0;
+        let agentPollInterval = null;
 
         // Initialize Speech Recognition
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -432,8 +436,17 @@
             };
 
             recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                if (event.error !== 'no-speech') {
+                console.error('[CUSTOMER] Speech recognition error:', event.error);
+                
+                // Handle mobile-specific errors
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    alert('Microphone access denied. Please enable microphone permissions in your browser settings.');
+                    updateConnectionStatus(false);
+                } else if (event.error === 'network') {
+                    console.log('[CUSTOMER] Network error - may be normal on mobile, retrying...');
+                    // Don't show error for network issues, they're common on mobile
+                } else if (event.error !== 'no-speech') {
+                    console.error('[CUSTOMER] Recognition error:', event.error);
                     updateConnectionStatus(false);
                 }
             };
@@ -450,13 +463,22 @@
                 }
             };
 
-            // Auto-start recording when page loads
-            setTimeout(() => {
-                if (sessionId) {
-                    console.log('[CUSTOMER] Auto-starting microphone in 500ms...');
-                    toggleMute();
-                }
-            }, 500);
+            // DON'T auto-start on mobile - requires user gesture
+            // Mobile browsers block auto-play audio/mic without user interaction
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (!isMobile) {
+                // Auto-start only on desktop
+                setTimeout(() => {
+                    if (sessionId) {
+                        console.log('[CUSTOMER] Auto-starting microphone (desktop)...');
+                        toggleMute();
+                    }
+                }, 500);
+            } else {
+                console.log('[CUSTOMER] Mobile device detected - user must tap microphone button');
+                document.getElementById('call-subtitle').textContent = 'Tap microphone to start';
+            }
         } else {
             console.error('[CUSTOMER] Speech recognition NOT available in this browser');
         }
@@ -477,11 +499,30 @@
         // Initialize Web Audio API for voice analysis
         async function initAudioAnalysis() {
             try {
-                // Request microphone access
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('[CUSTOMER] Initializing Web Audio API...');
                 
-                // Create audio context
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // Request microphone access with mobile-friendly constraints
+                const constraints = {
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('[CUSTOMER] Microphone access granted');
+                
+                // Create audio context - mobile Safari requires user gesture
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContextClass();
+                
+                // Resume audio context (required on mobile)
+                if (audioContext.state === 'suspended') {
+                    console.log('[CUSTOMER] Resuming audio context...');
+                    await audioContext.resume();
+                }
+                
                 analyser = audioContext.createAnalyser();
                 microphone = audioContext.createMediaStreamSource(stream);
                 
@@ -497,9 +538,10 @@
                 // Start analyzing
                 analyzeAudio();
                 
-                console.log('Audio analysis initialized');
+                console.log('[CUSTOMER] Audio analysis initialized and running');
             } catch (error) {
-                console.error('Failed to initialize audio analysis:', error);
+                console.error('[CUSTOMER] Failed to initialize audio analysis:', error);
+                alert('Could not access microphone: ' + error.message);
             }
         }
         
@@ -756,6 +798,41 @@
         if (sessionId) {
             checkConnection();
             setInterval(checkConnection, 5000);
+            
+            // Start polling for agent messages
+            startPollingAgentMessages();
+        }
+        
+        // Poll for agent messages
+        function startPollingAgentMessages() {
+            // Poll every 2 seconds
+            agentPollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/session/messages?sessionId=${sessionId}&since=${lastAgentMessageTimestamp}`);
+                    if (!response.ok) return;
+                    
+                    const data = await response.json();
+                    if (data.messages && data.messages.length > 0) {
+                        for (const message of data.messages) {
+                            if (message.role === 'agent') {
+                                console.log('[CUSTOMER] Agent message received:', message.content);
+                                // Update subtitle with agent's response
+                                document.getElementById('call-subtitle').textContent = `Agent: ${message.content}`;
+                                lastAgentMessageTimestamp = message.timestamp;
+                                
+                                // Clear after 5 seconds
+                                setTimeout(() => {
+                                    if (isRecording) {
+                                        document.getElementById('call-subtitle').textContent = 'Listening...';
+                                    }
+                                }, 5000);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('[CUSTOMER] Error polling agent messages:', error);
+                }
+            }, 2000);
         }
     </script>
 </body>
