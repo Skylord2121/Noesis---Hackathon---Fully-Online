@@ -4,6 +4,7 @@
 // State management
 let conversationHistory = []; // Track full conversation for AI context
 let customerIssueFixed = false; // Once issue is identified, keep it fixed
+let customerNameFixed = false; // Once name is identified, keep it fixed
 let statusUpdateCount = 0; // Limit status updates to max 4
 let customerHasSpoken = false; // Track if customer has spoken yet
 
@@ -574,7 +575,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "predicted_csat": 1.0-10.0,\n`;
         context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved",\n`;
         context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue description (max 30 chars) or null"'},\n`;
-        context += `    "customer_name": "Extract if customer says their name, otherwise null",\n`;
+        context += `    "customer_name": ${customerNameFixed ? '"KEEP_UNCHANGED"' : '"Extract if customer says their name, otherwise null"'},\n`;
         context += `    "tags": ["Max 3 or empty array"]\n`;
         context += `  }\n`;
         context += `}\n\n`;
@@ -617,7 +618,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   - No problem mentioned → null\n`;
         context += `   - Already set → "KEEP_UNCHANGED"\n\n`;
         
-        context += `8. CUSTOMER NAME: Extract if they say their name, otherwise null\n\n`;
+        context += `8. CUSTOMER NAME: ${customerNameFixed ? '"KEEP_UNCHANGED" (already detected)' : 'Extract if they say their name, otherwise null'}\n\n`;
         context += `9. TAGS: Only if explicitly mentioned, otherwise []\n\n`;
         
         context += `⚠️ EXAMPLES:\n`;
@@ -812,17 +813,23 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 
                 const customerInfo = {};
                 
-                // NAME: Use JavaScript-detected name if AI failed
-                if (detectedName) {
-                    customerInfo.name = detectedName;
-                    const nameParts = detectedName.split(' ');
-                    customerInfo.initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').substring(0, 2);
-                } else if (metrics.customer_name && typeof metrics.customer_name === 'string') {
-                    const name = metrics.customer_name.trim();
-                    if (name.length > 0 && name.length < 30) {
-                        customerInfo.name = name;
-                        const nameParts = name.split(' ');
+                // NAME: Use JavaScript-detected name if AI failed (ONLY if not already fixed)
+                if (!customerNameFixed) {
+                    if (detectedName) {
+                        customerInfo.name = detectedName;
+                        const nameParts = detectedName.split(' ');
                         customerInfo.initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').substring(0, 2);
+                        customerNameFixed = true; // Lock the name
+                        console.log('✅ Customer name locked:', detectedName);
+                    } else if (metrics.customer_name && typeof metrics.customer_name === 'string') {
+                        const name = metrics.customer_name.trim();
+                        if (name.length > 0 && name.length < 30) {
+                            customerInfo.name = name;
+                            const nameParts = name.split(' ');
+                            customerInfo.initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').substring(0, 2);
+                            customerNameFixed = true; // Lock the name
+                            console.log('✅ Customer name locked:', name);
+                        }
                     }
                 }
                 
@@ -1069,6 +1076,7 @@ function toggleLiveSession() {
         clearDemoData();
         conversationHistory = [];
         customerIssueFixed = false;
+        customerNameFixed = false; // Reset name lock for new session
         statusUpdateCount = 0;
         customerHasSpoken = false;
         transcriptMessages.innerHTML = ''; // Clear transcript
