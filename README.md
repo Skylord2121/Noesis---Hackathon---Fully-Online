@@ -59,6 +59,16 @@ RAG (Retrieval-Augmented Generation) allows the AI to:
 - **Quote specific guidelines** from your documentation
 - **Provide contextually relevant suggestions** based on your procedures
 
+### 📚 Guides for Everyone
+
+**New to coding? Start here:**
+- **HOW_TO_USE_RAG_SIMPLE.md** - Super simple 3-step guide with pictures
+- **RAG_FOR_NON_CODERS.md** - Complete guide in plain English (no coding knowledge needed)
+
+**For technical users:**
+- **QUICK_START_RAG.md** - 5-minute technical quick start
+- **LLAMAINDEX_SETUP.md** - Complete technical documentation
+
 ### Setup Document-Based Coaching
 
 1. **Add Your Documents**
@@ -78,6 +88,8 @@ RAG (Retrieval-Augmented Generation) allows the AI to:
    ```
 
 3. **Done!** The AI will now reference your policies in coaching suggestions.
+
+**Need help?** Read `HOW_TO_USE_RAG_SIMPLE.md` or `RAG_FOR_NON_CODERS.md` for step-by-step instructions.
 
 ### Example
 
