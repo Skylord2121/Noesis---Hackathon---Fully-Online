@@ -501,6 +501,45 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             context += `🔔 CUSTOMER NAME DETECTED: "${detectedName}" - Set customer_name to this!\n\n`;
         }
         
+        // Extract issue keywords
+        let detectedIssue = null;
+        const issueKeywords = {
+            'package': ['package not arrived', 'package missing', 'package delayed', 'where is my package'],
+            'bag': ['bag missing', 'bag lost', 'bag not arrived'],
+            'order': ['order not received', 'order missing', 'order cancelled'],
+            'refund': ['refund not processed', 'refund missing', 'need refund'],
+            'wrong': ['wrong item', 'incorrect item', 'wrong product'],
+            'damaged': ['damaged item', 'broken product', 'damaged package'],
+            'delivery': ['delivery delayed', 'delivery issue', 'not delivered'],
+            'tracking': ['tracking not working', 'cant track', 'tracking issue'],
+            'charged': ['charged twice', 'double charged', 'wrong charge'],
+            'account': ['account locked', 'cant login', 'account access']
+        };
+        
+        for (const [keyword, phrases] of Object.entries(issueKeywords)) {
+            if (lowerMsg.includes(keyword)) {
+                // Found a keyword, try to extract specific issue
+                if (lowerMsg.includes('missing')) {
+                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' missing';
+                } else if (lowerMsg.includes('delayed') || lowerMsg.includes('late')) {
+                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' delayed';
+                } else if (lowerMsg.includes('wrong') || lowerMsg.includes('incorrect')) {
+                    detectedIssue = 'Wrong ' + keyword;
+                } else if (lowerMsg.includes('damaged') || lowerMsg.includes('broken')) {
+                    detectedIssue = 'Damaged ' + keyword;
+                } else if (lowerMsg.includes('not arrived') || lowerMsg.includes('not received')) {
+                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' not arrived';
+                } else {
+                    detectedIssue = keyword.charAt(0).toUpperCase() + keyword.slice(1) + ' issue';
+                }
+                break;
+            }
+        }
+        
+        if (detectedIssue && !customerIssueFixed) {
+            context += `🚨 ISSUE DETECTED: "${detectedIssue}" - Set issue to exactly this!\n\n`;
+        }
+        
         context += `Return ONLY this EXACT JSON format:\n`;
         context += `{\n`;
         context += `  "coaching": {\n`;
