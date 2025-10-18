@@ -597,7 +597,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                 options: {
                     temperature: 0.7,
                     top_p: 0.9,
-                    num_predict: 300
+                    num_predict: 150
                 }
             })
         });
@@ -615,11 +615,18 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 coaching = JSON.parse(jsonMatch[0]);
+                // Truncate long messages
+                if (coaching.message && coaching.message.length > 150) {
+                    coaching.message = coaching.message.substring(0, 150) + '...';
+                }
+                if (coaching.phrase && coaching.phrase.length > 120) {
+                    coaching.phrase = coaching.phrase.substring(0, 120) + '...';
+                }
             } else {
                 coaching = {
                     type: 'empathy',
                     title: 'AI Suggestion',
-                    message: responseText.substring(0, 200),
+                    message: responseText.substring(0, 120),
                     phrase: null,
                     priority: 2
                 };
@@ -628,7 +635,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
             coaching = {
                 type: 'action',
                 title: 'AI Analysis',
-                message: data.response.substring(0, 200),
+                message: data.response.substring(0, 120),
                 phrase: null,
                 priority: 2
             };
@@ -855,25 +862,24 @@ async function testOllamaConnection() {
         const tagsData = await tagsResponse.json();
         const availableModels = tagsData.models?.map(m => m.name) || [];
         
-        // Test 2: Check if model exists
-        const modelExists = availableModels.some(m => m.includes(model.split(':')[0]));
+        // Test 2: Check if model exists (exact match or partial match)
+        const modelExists = availableModels.some(m => m === model || m.includes(model.split(':')[0]));
         
-        if (!modelExists) {
+        if (!modelExists && availableModels.length > 0) {
             statusDiv.className = 'p-3 rounded-lg text-sm bg-orange-500/10 border border-orange-500/30';
             statusDiv.innerHTML = `
                 <div class="flex items-start gap-2">
                     <i class="fas fa-exclamation-triangle text-orange-400 mt-0.5"></i>
                     <div class="flex-1">
                         <p class="text-orange-400 font-semibold">Model Not Found</p>
-                        <p class="text-gray-400 text-xs mt-1">Model "${model}" not available</p>
-                        <p class="text-gray-400 text-xs mt-1">Available: ${availableModels.slice(0, 3).join(', ')}</p>
+                        <p class="text-gray-400 text-xs mt-1">Looking for: "${model}"</p>
+                        <p class="text-gray-400 text-xs mt-1">Available: ${availableModels.join(', ')}</p>
+                        <p class="text-gray-400 text-xs mt-2">⚠️ Try testing anyway - it might still work</p>
                     </div>
                 </div>
             `;
-            showToast('Model not found', 'error');
-            testBtn.disabled = false;
-            testBtn.innerHTML = '<i class="fas fa-plug"></i> Test Connection';
-            return;
+            // Don't return - continue to test generation anyway
+            console.log('Model check failed but continuing...', { model, availableModels });
         }
         
         // Test 3: Try a simple generation
