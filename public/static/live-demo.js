@@ -541,7 +541,7 @@ function addCoachingCard(coaching, isAI = false) {
     }, coaching.priority === 1 ? 300 : 0);
 }
 
-// NEW: Call Ollama API for AI coaching analysis
+// NEW: Call Ollama API for AI coaching analysis (DIRECT from browser)
 async function analyzeCustomerMessage(customerMessage, customerName, agentName) {
     try {
         // Get saved Ollama settings
@@ -562,16 +562,43 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         `;
         coachingContainer.insertBefore(loadingCard, coachingContainer.firstChild);
         
-        const response = await fetch('/api/analyze-message', {
+        // Build conversation context
+        let context = "You are an expert call center coach analyzing a customer service conversation in real-time.\n\n";
+        context += "CONVERSATION HISTORY:\n";
+        
+        conversationHistory.forEach(msg => {
+            context += `${msg.speaker === 'agent' ? agentName : customerName}: ${msg.text}\n`;
+        });
+        
+        context += `\nLATEST CUSTOMER MESSAGE:\n${customerName}: ${customerMessage}\n\n`;
+        context += `TASK: Analyze the customer's latest message and provide coaching for the agent (${agentName}). Focus on:\n`;
+        context += `1. Customer's emotional state (frustration, confusion, satisfaction, etc.)\n`;
+        context += `2. What the agent should do next\n`;
+        context += `3. Specific empathetic phrases the agent can use\n`;
+        context += `4. Any red flags or escalation risks\n\n`;
+        context += `Respond in JSON format with these fields:\n`;
+        context += `{\n`;
+        context += `  "type": "de-escalation|empathy|action|transparency|resolution|knowledge",\n`;
+        context += `  "title": "Brief title for the coaching card",\n`;
+        context += `  "message": "Detailed coaching advice for the agent",\n`;
+        context += `  "phrase": "An exact phrase the agent can use (or null if not applicable)",\n`;
+        context += `  "priority": 1-3 (1=critical, 2=important, 3=nice-to-have)\n`;
+        context += `}\n\n`;
+        context += `Only return the JSON object, nothing else.`;
+        
+        // Call Ollama directly from browser
+        const response = await fetch(`${ollamaUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                customerMessage,
-                conversationHistory,
-                agentName,
-                customerName,
-                ollamaUrl,
-                model
+                model: model,
+                prompt: context,
+                stream: false,
+                options: {
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    num_predict: 300
+                }
             })
         });
         
@@ -581,17 +608,48 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         const loading = document.getElementById('ai-loading');
         if (loading) loading.remove();
         
-        if (data.success && data.coaching) {
-            // Add AI coaching card with special indicator
-            addCoachingCard(data.coaching, true);
-        } else {
-            console.error('AI coaching failed:', data.error);
+        // Parse the AI response
+        let coaching;
+        try {
+            const responseText = data.response.trim();
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                coaching = JSON.parse(jsonMatch[0]);
+            } else {
+                coaching = {
+                    type: 'empathy',
+                    title: 'AI Suggestion',
+                    message: responseText.substring(0, 200),
+                    phrase: null,
+                    priority: 2
+                };
+            }
+        } catch (parseError) {
+            coaching = {
+                type: 'action',
+                title: 'AI Analysis',
+                message: data.response.substring(0, 200),
+                phrase: null,
+                priority: 2
+            };
         }
+        
+        addCoachingCard(coaching, true);
+        
     } catch (error) {
         console.error('Failed to get AI coaching:', error);
         // Remove loading indicator on error
         const loading = document.getElementById('ai-loading');
         if (loading) loading.remove();
+        
+        // Show error in coaching panel
+        addCoachingCard({
+            type: 'knowledge',
+            title: 'AI Connection Error',
+            message: 'Could not connect to Ollama. Make sure it\'s running and accessible at: ' + (localStorage.getItem('ollama-host') || 'http://localhost:11434'),
+            phrase: null,
+            priority: 3
+        }, true);
     }
 }
 
@@ -784,44 +842,72 @@ async function testOllamaConnection() {
     statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i><span class="text-blue-400">Testing connection...</span>';
     
     try {
-        const response = await fetch('/api/test-ollama', {
+        // Test directly from browser (not through backend)
+        // Test 1: Check if server is reachable
+        const tagsResponse = await fetch(`${host}/api/tags`, {
+            method: 'GET'
+        });
+        
+        if (!tagsResponse.ok) {
+            throw new Error(`Ollama server returned ${tagsResponse.status}`);
+        }
+        
+        const tagsData = await tagsResponse.json();
+        const availableModels = tagsData.models?.map(m => m.name) || [];
+        
+        // Test 2: Check if model exists
+        const modelExists = availableModels.some(m => m.includes(model.split(':')[0]));
+        
+        if (!modelExists) {
+            statusDiv.className = 'p-3 rounded-lg text-sm bg-orange-500/10 border border-orange-500/30';
+            statusDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-exclamation-triangle text-orange-400 mt-0.5"></i>
+                    <div class="flex-1">
+                        <p class="text-orange-400 font-semibold">Model Not Found</p>
+                        <p class="text-gray-400 text-xs mt-1">Model "${model}" not available</p>
+                        <p class="text-gray-400 text-xs mt-1">Available: ${availableModels.slice(0, 3).join(', ')}</p>
+                    </div>
+                </div>
+            `;
+            showToast('Model not found', 'error');
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="fas fa-plug"></i> Test Connection';
+            return;
+        }
+        
+        // Test 3: Try a simple generation
+        const testResponse = await fetch(`${host}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                ollamaUrl: host,
-                model: model
+                model: model,
+                prompt: 'Say "Hello" in one word.',
+                stream: false,
+                options: { num_predict: 10 }
             })
         });
         
-        const data = await response.json();
+        const data = await testResponse.json();
         
-        if (data.success) {
-            statusDiv.className = 'p-3 rounded-lg text-sm bg-green-500/10 border border-green-500/30';
-            statusDiv.innerHTML = `
-                <div class="flex items-start gap-2">
-                    <i class="fas fa-check-circle text-green-400 mt-0.5"></i>
-                    <div class="flex-1">
-                        <p class="text-green-400 font-semibold">${data.message}</p>
-                        <p class="text-gray-400 text-xs mt-1">Model: ${data.details.model}</p>
-                        ${data.details.availableModels ? `<p class="text-gray-400 text-xs mt-1">Available: ${data.details.availableModels.slice(0, 3).join(', ')}...</p>` : ''}
-                    </div>
-                </div>
-            `;
-            showToast('Connection successful!', 'success');
-        } else {
-            statusDiv.className = 'p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30';
-            statusDiv.innerHTML = `
-                <div class="flex items-start gap-2">
-                    <i class="fas fa-exclamation-circle text-red-400 mt-0.5"></i>
-                    <div class="flex-1">
-                        <p class="text-red-400 font-semibold">Connection Failed</p>
-                        <p class="text-gray-400 text-xs mt-1">${data.message || data.error}</p>
-                        ${data.availableModels ? `<p class="text-gray-400 text-xs mt-1">Try: ${data.availableModels.slice(0, 3).join(', ')}</p>` : ''}
-                    </div>
-                </div>
-            `;
-            showToast('Connection failed', 'error');
+        if (!testResponse.ok) {
+            throw new Error(`Model generation failed: ${testResponse.status}`);
         }
+        
+        // Success!
+        statusDiv.className = 'p-3 rounded-lg text-sm bg-green-500/10 border border-green-500/30';
+        statusDiv.innerHTML = `
+            <div class="flex items-start gap-2">
+                <i class="fas fa-check-circle text-green-400 mt-0.5"></i>
+                <div class="flex-1">
+                    <p class="text-green-400 font-semibold">Connection Successful!</p>
+                    <p class="text-gray-400 text-xs mt-1">Model: ${model}</p>
+                    <p class="text-gray-400 text-xs mt-1">Response: ${data.response?.substring(0, 30)}...</p>
+                    <p class="text-gray-400 text-xs mt-1">Available: ${availableModels.slice(0, 3).join(', ')}</p>
+                </div>
+            </div>
+        `;
+        showToast('Connection successful!', 'success');
     } catch (error) {
         statusDiv.className = 'p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30';
         statusDiv.innerHTML = `
