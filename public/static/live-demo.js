@@ -1,11 +1,11 @@
-// Live Demo Script - Realistic call simulation with Laura & Maya
+// Live Demo Script - Realistic call simulation with Dana & Marcus
 
 const conversation = [
     {
         time: 2,
         speaker: 'agent',
-        name: 'Maya',
-        text: 'Thank you for calling BrightWave Internet Support. This is Maya. How can I help you today?',
+        name: 'Marcus',
+        text: 'Thank you for calling TechEase Internet Support. My name is Marcus. How can I help you today?',
         sentiment: 0.5,
         empathy: 3.2,
         stress: null,
@@ -15,217 +15,256 @@ const conversation = [
     {
         time: 8,
         speaker: 'customer',
-        name: 'Laura',
-        text: "Honestly, I'm really upset right now. My internet's been cutting out every few minutes for the last three days, and this is the third time I'm calling! Nobody's fixing it.",
-        highlights: ['upset', "cutting out", "third time", "Nobody's fixing"],
-        sentiment: 0.05,
+        name: 'Dana',
+        text: "I'm honestly getting fed up. My internet keeps dropping every hour, and it's been happening all week. I'm tired of calling and getting no real help.",
+        highlights: ['fed up', 'dropping every hour', 'all week', 'tired of calling', 'no real help'],
+        sentiment: 0.1,
         empathy: 3.2,
         stress: 'High',
-        clarity: 'Poor',
+        clarity: 'Good',
         customerInfo: {
-            name: 'Laura Chen',
-            initials: 'LC',
-            issue: 'Internet Outage',
-            tags: ['3rd Call']
+            name: 'Dana Rodriguez',
+            initials: 'DR',
+            issue: 'Internet Dropping',
+            tags: ['Repeat Caller']
         },
         coaching: {
             type: 'de-escalation',
-            title: 'De-escalation Needed',
-            message: 'Customer is expressing frustration about repeat contact. Acknowledge their patience and validate their concern.',
-            phrase: "I hear how frustrating this must be, Laura. Let me take ownership of this right now and make sure we resolve it today.",
+            title: 'Customer Frustrated',
+            message: 'Customer expressing frustration with recurring issue and lack of resolution.',
+            phrase: "I understand your frustration, Dana. Let's get this resolved for you right now.",
             priority: 1
         }
     },
     {
-        time: 16,
+        time: 15,
         speaker: 'agent',
-        name: 'Maya',
-        text: "I'm sorry you've had to deal with that, Laura. I can hear the frustration in your voice. Let's take a minute to sort this out together.",
+        name: 'Marcus',
+        text: "I'm really sorry to hear that, Dana. I know how frustrating it can be when your connection keeps cutting out. Let's take a look together and see what might be going on.",
         sentiment: 0.15,
-        empathy: 5.8,
+        empathy: 5.5,
         stress: 'High',
-        clarity: 'Fair',
+        clarity: 'Good',
         coaching: null
     },
     {
         time: 24,
         speaker: 'customer',
-        name: 'Laura',
-        text: "It's just so annoying! I work from home. Every time it drops, I lose connection in meetings. Last agent said it'd be fine by yesterday—still nothing!",
-        highlights: ['annoying', 'work from home', 'lose connection', 'still nothing'],
-        sentiment: 0.12,
-        empathy: 5.8,
+        name: 'Dana',
+        text: "You said that last time. The last agent said they would fix it within 24 hours, and here I am, calling again. I work from home. This is costing me time and money.",
+        highlights: ['said that last time', 'calling again', 'work from home', 'costing me time and money'],
+        sentiment: 0.08,
+        empathy: 5.5,
         stress: 'High',
-        clarity: 'Fair',
+        clarity: 'Good',
         customerInfo: {
-            tags: ['Work From Home']
+            tags: ['Work From Home', '3rd Call']
         },
         coaching: {
             type: 'empathy',
-            title: 'Show Understanding',
-            message: 'Customer is explaining impact on work. Demonstrate you understand the business consequence.',
-            phrase: "I completely understand - losing connection during work meetings is not acceptable. Let me look into this immediately.",
-            priority: 2
-        }
-    },
-    {
-        time: 33,
-        speaker: 'agent',
-        name: 'Maya',
-        text: "Totally understandable. Let's pull up your connection details and see what's happening right now.",
-        sentiment: 0.25,
-        empathy: 6.9,
-        stress: 'Medium',
-        clarity: 'Good',
-        clarity: 'Good',
-        customerInfo: {
-            tier: 'Premium • 2.3yr',
-            tags: ['Premium']
-        },
-        coaching: {
-            type: 'action',
-            title: 'Taking Action',
-            message: 'Good - moving to problem-solving while maintaining empathy.',
-            phrase: null,
-            priority: 3
-        }
-    },
-    {
-        time: 39,
-        speaker: 'agent',
-        name: 'Maya',
-        text: "Alright, I see a service alert in your area. It looks like one router node has been unstable since Monday.",
-        sentiment: 0.35,
-        empathy: 7.2,
-        stress: 'Medium',
-        clarity: 'Good',
-        coaching: null
-    },
-    {
-        time: 46,
-        speaker: 'customer',
-        name: 'Laura',
-        text: "So that's why! But why couldn't anyone just tell me that before?",
-        highlights: ["couldn't anyone tell me"],
-        sentiment: 0.40,
-        empathy: 7.2,
-        stress: 'Medium',
-        clarity: 'Good',
-        coaching: {
-            type: 'transparency',
-            title: 'Build Trust',
-            message: 'Customer wants transparency. Reference specific protocols to show systematic improvement.',
-            phrase: "You're absolutely right. Let me explain our Service Impact Transparency Protocol and why this should have been communicated sooner.",
+            title: 'Acknowledge Impact',
+            message: 'Customer expressing financial and professional impact. Validate the seriousness.',
+            phrase: "I completely understand - when you work from home, reliable internet isn't optional. Let me find a real solution.",
             priority: 1
         }
     },
     {
-        time: 52,
+        time: 35,
         speaker: 'agent',
-        name: 'Maya',
-        text: "You're right. We should've been clearer. We actually have a \"Service Impact Transparency Protocol\" that guides us to notify customers when outages last more than 24 hours. It seems your case slipped through that process, and I'm really sorry for that.",
-        sentiment: 0.55,
-        empathy: 8.4,
-        stress: 'Low',
+        name: 'Marcus',
+        text: "I completely understand. I can see from your account that there were a few signal drops reported on your line. Let me try restarting your modem remotely.",
+        sentiment: 0.12,
+        empathy: 6.0,
+        stress: 'High',
         clarity: 'Good',
         coaching: null
     },
     {
-        time: 64,
+        time: 45,
+        speaker: 'agent',
+        name: 'Marcus',
+        text: "Alright, I've just sent the restart signal. It should reconnect in about a minute or two.",
+        sentiment: 0.15,
+        empathy: 6.0,
+        stress: 'High',
+        clarity: 'Good',
+        coaching: null
+    },
+    {
+        time: 52,
         speaker: 'customer',
-        name: 'Laura',
-        text: "Okay… I appreciate you saying that. So what now?",
-        sentiment: 0.62,
-        empathy: 8.4,
-        stress: 'Low',
+        name: 'Dana',
+        text: "I've done that a hundred times. That's not fixing the issue. I need a real solution, not another restart.",
+        highlights: ['done that a hundred times', 'not fixing', 'real solution'],
+        sentiment: 0.10,
+        empathy: 6.0,
+        stress: 'High',
         clarity: 'Good',
         coaching: {
-            type: 'resolution',
-            title: 'Clear Next Steps',
-            message: 'Customer is ready to move forward. Provide specific timeline and compensate for inconvenience.',
-            phrase: "I'm opening a priority ticket right now and will also credit your account for the downtime.",
+            type: 'action',
+            title: 'Escalate or Offer Alternative',
+            message: 'Customer rejecting basic troubleshooting. Consider escalating to technical team.',
+            phrase: "You're right - if restarts haven't worked, we need to escalate this to our network team for deeper analysis.",
+            priority: 1
+        }
+    },
+    {
+        time: 62,
+        speaker: 'agent',
+        name: 'Marcus',
+        text: 'I understand. We follow the "Step One Service Protocol," which requires us to restart and monitor before escalating to our network team. Once that is complete, I can submit a ticket if the issue continues.',
+        sentiment: 0.12,
+        empathy: 5.2,
+        stress: 'High',
+        clarity: 'Good',
+        coaching: {
+            type: 'transparency',
+            title: 'Protocol Limitation',
+            message: 'Agent citing protocol. Customer may feel unheard. Balance protocol with empathy.',
+            phrase: "I know this process feels frustrating. I wish I could skip ahead, but I need to follow protocol to get you the best help.",
             priority: 2
         }
     },
     {
-        time: 69,
-        speaker: 'agent',
-        name: 'Maya',
-        text: "I've just opened a priority ticket linked to your account. The repair crew is scheduled for tonight, and based on our protocol, your connection should stabilize within 12 hours. I'll also credit your account for the downtime.",
-        sentiment: 0.75,
-        empathy: 9.1,
-        stress: 'Low',
+        time: 72,
+        speaker: 'customer',
+        name: 'Dana',
+        text: "So you're telling me I have to wait again?",
+        highlights: ['wait again'],
+        sentiment: 0.15,
+        empathy: 5.2,
+        stress: 'Medium',
         clarity: 'Good',
         coaching: null
     },
     {
-        time: 80,
+        time: 77,
+        speaker: 'agent',
+        name: 'Marcus',
+        text: "For now, yes. We need to confirm if this step resolves it first. It usually helps in most cases.",
+        sentiment: 0.18,
+        empathy: 4.8,
+        stress: 'Medium',
+        clarity: 'Good',
+        coaching: null
+    },
+    {
+        time: 85,
         speaker: 'customer',
-        name: 'Laura',
-        text: "Wow, thank you. I wish every agent handled it like this.",
-        sentiment: 0.85,
-        empathy: 9.1,
-        stress: 'Low',
+        name: 'Dana',
+        text: "(sighs) Fine. Let's see if it works. The lights are back on... Okay, it's connected again.",
+        highlights: ['sighs', 'Fine'],
+        sentiment: 0.35,
+        empathy: 4.8,
+        stress: 'Medium',
+        clarity: 'Good',
+        coaching: null
+    },
+    {
+        time: 93,
+        speaker: 'agent',
+        name: 'Marcus',
+        text: "That's great news. Let's hope it stays stable this time. I'll note the account and send a follow-up email with the service report.",
+        sentiment: 0.40,
+        empathy: 5.5,
+        stress: 'Medium',
+        clarity: 'Good',
+        coaching: null
+    },
+    {
+        time: 102,
+        speaker: 'customer',
+        name: 'Dana',
+        text: "Alright. I appreciate your tone, Marcus. You're polite. I just wish someone would actually fix it for good.",
+        highlights: ['appreciate', 'polite', 'fix it for good'],
+        sentiment: 0.50,
+        empathy: 5.5,
+        stress: 'Medium',
         clarity: 'Good',
         coaching: {
-            type: 'knowledge',
-            title: 'Document Success',
-            message: 'Excellent resolution. Customer expressing satisfaction with handling.',
-            phrase: null,
-            priority: 3
+            type: 'empathy',
+            title: 'Customer Softening',
+            message: 'Customer acknowledging agent effort despite frustration. Good rapport building.',
+            phrase: "Thank you, Dana. I genuinely want this resolved for you. If it drops again, call back immediately and reference this case.",
+            priority: 2
         }
     },
     {
-        time: 86,
+        time: 112,
         speaker: 'agent',
-        name: 'Maya',
-        text: "That means a lot, Laura. I'll stay on the line for a moment while I confirm the credit. You'll get an email summary following our Quality Care Guide—it lists the steps and your ticket number so you can track it easily.",
-        sentiment: 0.90,
-        empathy: 9.3,
-        stress: 'Low',
+        name: 'Marcus',
+        text: "I completely understand. If it drops again, please call back and we'll escalate it to our network department immediately.",
+        sentiment: 0.48,
+        empathy: 6.0,
+        stress: 'Medium',
         clarity: 'Good',
         coaching: null
     },
     {
-        time: 98,
+        time: 120,
         speaker: 'customer',
-        name: 'Laura',
-        text: "That's perfect. Thanks for your patience. I feel better now.",
-        sentiment: 0.92,
-        empathy: 9.3,
-        stress: 'Low',
+        name: 'Dana',
+        text: "So you're saying I have to call again? This is the third time. You can't just create that ticket now?",
+        highlights: ['call again', 'third time', "can't just create that ticket"],
+        sentiment: 0.35,
+        empathy: 6.0,
+        stress: 'Medium',
         clarity: 'Good',
-        coaching: null
+        coaching: {
+            type: 'action',
+            title: 'Customer Requesting Proactive Action',
+            message: 'Customer wants ticket created now. Consider if protocol allows proactive escalation.',
+            phrase: "Let me check if I can create a preventive ticket now based on your history. You shouldn't have to call back.",
+            priority: 1
+        }
     },
     {
-        time: 103,
+        time: 130,
         speaker: 'agent',
-        name: 'Maya',
-        text: "You're very welcome. I'm glad we got this sorted out. Is there anything else I can help you with before we close?",
-        sentiment: 0.95,
-        empathy: 9.5,
-        stress: 'Low',
+        name: 'Marcus',
+        text: "The protocol doesn't allow it until we verify the restart result. I'm really sorry.",
+        sentiment: 0.30,
+        empathy: 5.0,
+        stress: 'Medium',
         clarity: 'Good',
-        coaching: null
+        coaching: {
+            type: 'transparency',
+            title: 'Protocol Limitation Again',
+            message: 'Agent stuck in protocol. Customer frustration may increase. Show genuine regret.',
+            phrase: "I hear you - this policy frustrates me too. I'll document everything so if you do call back, it's escalated instantly.",
+            priority: 2
+        }
     },
     {
-        time: 110,
+        time: 138,
         speaker: 'customer',
-        name: 'Laura',
-        text: "No, that's all. Have a good day, Maya.",
-        sentiment: 0.95,
-        empathy: 9.5,
+        name: 'Dana',
+        text: "That's ridiculous. You're nice, but this process is useless. I'll call again if it happens, but I'm not happy about it.",
+        highlights: ['ridiculous', "You're nice", 'process is useless', 'not happy'],
+        sentiment: 0.32,
+        empathy: 5.0,
+        stress: 'Medium',
+        clarity: 'Good',
+        coaching: null
+    },
+    {
+        time: 148,
+        speaker: 'agent',
+        name: 'Marcus',
+        text: "I understand, Dana. I truly wish I could do more within the system.",
+        sentiment: 0.35,
+        empathy: 5.5,
         stress: 'Low',
         clarity: 'Good',
         coaching: null
     },
     {
-        time: 113,
-        speaker: 'agent',
-        name: 'Maya',
-        text: "You too, Laura—and thanks for giving us the chance to fix this.",
-        sentiment: 0.98,
-        empathy: 9.6,
+        time: 153,
+        speaker: 'customer',
+        name: 'Dana',
+        text: "Yeah. Thanks anyway.",
+        sentiment: 0.40,
+        empathy: 5.5,
         stress: 'Low',
         clarity: 'Good',
         coaching: null
@@ -353,6 +392,9 @@ function updateCustomerInfo(info) {
     }
     if (info.initials) {
         customerInitials.textContent = info.initials;
+    }
+    if (info.tier) {
+        customerTier.textContent = info.tier;
     }
     if (info.tier) {
         customerTier.textContent = info.tier;
@@ -834,13 +876,15 @@ function simulateCall() {
                 setTimeout(() => addCoachingCard(item.coaching, false), 800);
             }
             
-            // NEW: If customer (Laura) spoke, call AI for important messages only
+            // NEW: If customer spoke, call AI for important messages only
             if (item.speaker === 'customer') {
                 // Only call AI for every 2nd customer message to reduce frequency
                 aiRequestCount++;
                 if (aiRequestCount % 2 === 1) { // 1st, 3rd, 5th customer messages
+                    // Get agent name from conversation (first agent message)
+                    const agentName = conversation.find(msg => msg.speaker === 'agent')?.name || 'Agent';
                     setTimeout(() => {
-                        analyzeCustomerMessage(item.text, item.name, 'Maya');
+                        analyzeCustomerMessage(item.text, item.name, agentName);
                     }, 1500); // Delay slightly so AI response comes after mock coaching
                 }
             }
