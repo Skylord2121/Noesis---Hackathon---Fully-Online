@@ -381,6 +381,11 @@ async function getAgentResponse(customerMessage) {
         // CLEAR AGENT THINKING FLAG
         isAgentThinking = false;
         
+        // RESTART VOICE ANIMATION - important for spectrum bars to work again
+        if (isListening && !isPaused) {
+            animateSpectrum();
+        }
+        
         // RESUME MICROPHONE after AI finishes responding
         if (recognition && isListening && !isPaused) {
             setTimeout(() => {
@@ -399,6 +404,11 @@ async function getAgentResponse(customerMessage) {
         
         // CLEAR AGENT THINKING FLAG even on error
         isAgentThinking = false;
+        
+        // RESTART VOICE ANIMATION even on error
+        if (isListening && !isPaused) {
+            animateSpectrum();
+        }
         
         // Make sure to resume microphone even if agent response fails
         if (recognition && isListening && !isPaused) {
@@ -464,7 +474,7 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `    "quality": 40-95,\n`;
         context += `    "predicted_csat": 1.0-10.0,\n`;
         context += `    "status": "Open|Investigating|Ongoing|Resolving|Resolved",\n`;
-        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue (max 25 chars) or null"'},\n`;
+        context += `    "issue": ${customerIssueFixed ? '"KEEP_UNCHANGED"' : '"Brief issue description (max 30 chars) or null"'},\n`;
         context += `    "tags": ["Max 3 or empty array"]\n`;
         context += `  }\n`;
         context += `}\n\n`;
@@ -567,7 +577,22 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
         context += `   - "I'm ecstatic", "best service ever", "you're incredible" → 9.5-9.8\n`;
         context += `   - "Best time of my life", "absolutely perfect", "10/10" → 9.8-10.0\n\n`;
         
-        context += `6. TAGS: ONLY add if customer EXPLICITLY says:\n`;
+        context += `6. STATUS (Call status progression - start Open, stay Open until truly resolved):\n`;
+        context += `   - Open: Customer just called, issue not yet identified or understood\n`;
+        context += `   - Investigating: Agent asking questions to understand the problem\n`;
+        context += `   - Ongoing: Agent working on solution, processing request\n`;
+        context += `   - Resolving: Solution provided, waiting for customer confirmation\n`;
+        context += `   - Resolved: Customer EXPLICITLY confirms issue is fixed ("that worked", "problem solved", etc.)\n`;
+        context += `   ⚠️ CRITICAL: Status should stay "Open" until agent starts helping. Don't jump to "Resolved" just because customer is happy!\n\n`;
+        
+        context += `7. ISSUE (What is the customer's ACTUAL PROBLEM - NOT their emotion):\n`;
+        context += `   - CORRECT examples: "Package delayed", "Wrong item received", "Refund not processed", "Account locked"\n`;
+        context += `   - WRONG examples: "Customer frustrated", "Customer angry", "Customer upset" ❌ NO EMOTIONS!\n`;
+        context += `   - ONLY set issue when customer mentions a SPECIFIC PROBLEM\n`;
+        context += `   - If no clear problem mentioned yet → null\n`;
+        context += `   - Once set, use "KEEP_UNCHANGED" to preserve it\n\n`;
+        
+        context += `8. TAGS: ONLY add if customer EXPLICITLY says:\n`;
         context += `   - "I'm a premium member" → "Premium"\n`;
         context += `   - "I've called 3 times" → "Repeat Caller"\n`;
         context += `   - Otherwise → empty array []\n\n`;
@@ -717,21 +742,39 @@ async function analyzeCustomerMessage(customerMessage, customerName, agentName) 
                     updateClarity(metrics.clarity);
                 }
                 
-                if (metrics.status && statusUpdateCount < 4) {
+                // STATUS: Always start at "Open" on first message, then update based on AI
+                if (metrics.status) {
                     const validStatuses = ['Open', 'Investigating', 'Ongoing', 'Resolving', 'Resolved'];
                     if (validStatuses.includes(metrics.status)) {
-                        customerStatus.textContent = metrics.status;
-                        customerStatus.className = 'font-semibold ' + 
-                            (metrics.status === 'Resolved' ? 'text-green-400' : 
-                             metrics.status === 'Open' ? 'text-red-400' : 'text-yellow-400');
-                        statusUpdateCount++;
+                        // Set status to "Open" on first customer message if not already set
+                        if (statusUpdateCount === 0 && customerHasSpoken && customerStatus.textContent === 'N/A') {
+                            customerStatus.textContent = 'Open';
+                            customerStatus.className = 'font-semibold text-red-400';
+                            statusUpdateCount++;
+                        } else if (statusUpdateCount < 10) { // Allow more status updates to track progression
+                            customerStatus.textContent = metrics.status;
+                            customerStatus.className = 'font-semibold ' + 
+                                (metrics.status === 'Resolved' ? 'text-green-400' : 
+                                 metrics.status === 'Open' ? 'text-red-400' : 'text-yellow-400');
+                            statusUpdateCount++;
+                        }
                     }
                 }
                 
                 const customerInfo = {};
-                if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED') {
-                    customerInfo.issue = metrics.issue.substring(0, 25);
-                    customerIssueFixed = true;
+                // ISSUE: Only set once when customer describes actual problem (not emotion)
+                if (!customerIssueFixed && metrics.issue && metrics.issue !== 'KEEP_UNCHANGED' && metrics.issue !== null) {
+                    // Validate that issue is not an emotion word
+                    const emotionWords = ['angry', 'frustrated', 'upset', 'happy', 'satisfied', 'annoyed', 'mad', 'furious'];
+                    const isEmotion = emotionWords.some(word => metrics.issue.toLowerCase().includes(word));
+                    
+                    if (!isEmotion) {
+                        customerInfo.issue = metrics.issue.substring(0, 30);
+                        customerIssueFixed = true;
+                        console.log('✅ Issue identified:', metrics.issue);
+                    } else {
+                        console.log('❌ Rejected emotion as issue:', metrics.issue);
+                    }
                 }
                 if (metrics.tags && Array.isArray(metrics.tags)) {
                     customerInfo.tags = metrics.tags.slice(0, 4);
