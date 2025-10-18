@@ -225,13 +225,119 @@
         .theme-toggle:hover {
             transform: scale(1.1);
         }
+
+        /* Hide mobile controls on desktop */
+        .mobile-controls {
+            display: none;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                overflow-y: auto;
+                height: auto;
+                padding: 0.5rem !important;
+            }
+
+            .glass-panel {
+                border-radius: 6px;
+            }
+
+            /* Mobile header - compact */
+            .mobile-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .mobile-header-left {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .mobile-header-right {
+                width: 100%;
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+
+            /* Mobile grid - stack vertically */
+            .mobile-grid {
+                display: flex !important;
+                flex-direction: column;
+                gap: 0.75rem;
+                height: auto !important;
+            }
+
+            .mobile-info-cards {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+            }
+
+            .mobile-voice {
+                grid-column: 1 / -1;
+            }
+
+            /* Sticky controls at bottom */
+            .mobile-controls {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 50;
+                padding: 0.5rem;
+                background: rgba(10, 14, 23, 0.98);
+                backdrop-filter: blur(12px);
+                border-top: 1px solid rgba(59, 130, 246, 0.2);
+            }
+
+            .mobile-controls-inner {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: space-between;
+            }
+
+            .mobile-controls button {
+                flex: 1;
+                font-size: 0.75rem;
+                padding: 0.5rem 0.25rem;
+            }
+
+            .mobile-controls button i {
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+
+            /* Transcript takes most space on mobile */
+            .mobile-transcript {
+                min-height: 60vh;
+                margin-bottom: 80px; /* Space for sticky controls */
+            }
+
+            /* Hide some less critical info on mobile */
+            .hide-mobile {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mobile-header-right > div {
+                font-size: 0.875rem;
+            }
+
+            .mobile-controls button {
+                font-size: 0.65rem;
+                padding: 0.4rem 0.2rem;
+            }
+        }
     </style>
 </head>
 <body class="p-3">
     <!-- Compact Header -->
     <div class="glass-panel p-3 mb-3">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
+        <div class="flex items-center justify-between mobile-header">
+            <div class="flex items-center gap-3 mobile-header-left">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-blue-500 to-blue-400 flex items-center justify-center relative overflow-hidden shadow-lg shadow-blue-500/50">
                     <svg class="w-6 h-6 text-white relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <!-- Modern N letter with neural network nodes -->
@@ -253,13 +359,13 @@
                     <p class="text-xs text-gray-500">Real-time Call Intelligence</p>
                 </div>
             </div>
-            <div class="flex items-center gap-6">
+            <div class="flex items-center gap-6 mobile-header-right">
                 <div class="text-center">
-                    <div class="text-xs text-gray-500">Empathy Score</div>
+                    <div class="text-xs text-gray-500">Empathy</div>
                     <div class="text-2xl font-bold text-blue-400">8.4</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-xs text-gray-500">Call Time</div>
+                    <div class="text-xs text-gray-500">Time</div>
                     <div class="text-xl font-bold text-blue-300">05:42</div>
                 </div>
                 <button onclick="toggleTheme()" class="theme-toggle w-9 h-9 rounded-lg bg-slate-800/40 hover:bg-slate-700/60 flex items-center justify-center border border-blue-500/20">
@@ -269,9 +375,9 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-12 gap-3" style="height: calc(100vh - 120px);">
+    <div class="grid grid-cols-12 gap-3 mobile-grid" style="height: calc(100vh - 120px);">
         <!-- Left Sidebar - Agent & Customer -->
-        <div class="col-span-2 space-y-3 overflow-y-auto scrollbar-thin pr-1">
+        <div class="col-span-2 space-y-3 overflow-y-auto scrollbar-thin pr-1 mobile-info-cards">
             <!-- Agent Info -->
             <div class="glass-panel p-3">
                 <div class="flex items-center gap-2 mb-2">
@@ -325,7 +431,7 @@
             </div>
 
             <!-- Customer Voice Metrics -->
-            <div class="glass-panel p-3">
+            <div class="glass-panel p-3 mobile-voice">
                 <div class="flex items-center gap-2 mb-2">
                     <i class="fas fa-waveform text-purple-400 text-xs"></i>
                     <h3 class="font-semibold text-sm">Customer Voice</h3>
@@ -383,7 +489,7 @@
         </div>
 
         <!-- Center - Transcript & Controls -->
-        <div class="col-span-8 flex flex-col gap-3">
+        <div class="col-span-8 flex flex-col gap-3 mobile-transcript">
             <!-- Emotion Bar -->
             <div class="glass-panel p-3">
                 <div class="flex items-center justify-between mb-2">
@@ -467,7 +573,7 @@
             </div>
 
             <!-- Compact Controls -->
-            <div class="glass-panel p-2">
+            <div class="glass-panel p-2 hide-mobile">
                 <div class="flex items-center justify-between">
                     <div class="flex gap-2">
                         <button class="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-semibold rounded text-sm transition flex items-center gap-2 border border-yellow-500/30">
@@ -594,6 +700,28 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Mobile Controls (sticky at bottom) -->
+    <div class="mobile-controls">
+        <div class="mobile-controls-inner">
+            <button class="bg-yellow-500/20 text-yellow-300 rounded border border-yellow-500/30 flex flex-col items-center justify-center">
+                <i class="fas fa-pause"></i>
+                <span>Hold</span>
+            </button>
+            <button class="bg-orange-500 text-white rounded flex flex-col items-center justify-center">
+                <i class="fas fa-arrow-up"></i>
+                <span>Escalate</span>
+            </button>
+            <button class="bg-blue-500/20 text-blue-300 rounded border border-blue-500/30 flex flex-col items-center justify-center">
+                <i class="fas fa-microphone-slash"></i>
+                <span>Mute</span>
+            </button>
+            <button class="bg-red-500 text-white rounded flex flex-col items-center justify-center">
+                <i class="fas fa-phone-slash"></i>
+                <span>End</span>
+            </button>
         </div>
     </div>
 
