@@ -20,6 +20,12 @@ const conversation = [
         sentiment: 0.05,
         empathy: 3.2,
         stress: 'High',
+        customerInfo: {
+            name: 'Laura Chen',
+            initials: 'LC',
+            issue: 'Internet Outage',
+            tags: ['3rd Call']
+        },
         coaching: {
             type: 'de-escalation',
             title: 'De-escalation Needed',
@@ -47,6 +53,9 @@ const conversation = [
         sentiment: 0.12,
         empathy: 5.8,
         stress: 'High',
+        customerInfo: {
+            tags: ['Work From Home']
+        },
         coaching: {
             type: 'empathy',
             title: 'Show Understanding',
@@ -63,6 +72,10 @@ const conversation = [
         sentiment: 0.25,
         empathy: 6.9,
         stress: 'Medium',
+        customerInfo: {
+            tier: 'Premium • 2.3yr',
+            tags: ['Premium']
+        },
         coaching: {
             type: 'action',
             title: 'Taking Action',
@@ -208,6 +221,7 @@ let currentIndex = 0;
 let callActive = true;
 
 // DOM elements
+const transcriptMessages = document.getElementById('transcript-messages');
 const transcriptContainer = document.getElementById('transcript-container');
 const coachingContainer = document.getElementById('coaching-container');
 const empathyScore = document.getElementById('empathy-score');
@@ -217,6 +231,13 @@ const stressLabel = document.getElementById('stress-label');
 const sentimentIndicator = document.getElementById('sentiment-indicator');
 const qualityScore = document.getElementById('quality-score');
 const predictedCsat = document.getElementById('predicted-csat');
+
+// Customer info elements
+const customerName = document.getElementById('customer-name');
+const customerInitials = document.getElementById('customer-initials');
+const customerTier = document.getElementById('customer-tier');
+const customerIssue = document.getElementById('customer-issue');
+const customerTags = document.getElementById('customer-tags');
 
 // Helper functions
 function formatTime(seconds) {
@@ -284,6 +305,45 @@ function updateMetrics(empathy) {
     predictedCsat.textContent = csat;
 }
 
+function updateCustomerInfo(info) {
+    if (info.name) {
+        customerName.textContent = info.name;
+        customerName.className = 'font-medium text-sm';
+    }
+    if (info.initials) {
+        customerInitials.textContent = info.initials;
+    }
+    if (info.tier) {
+        customerTier.textContent = info.tier;
+    }
+    if (info.issue) {
+        customerIssue.textContent = info.issue;
+        customerIssue.className = 'font-semibold text-red-400';
+    }
+    if (info.tags) {
+        info.tags.forEach(tag => {
+            // Check if tag already exists
+            const existingTags = Array.from(customerTags.children).map(el => el.textContent);
+            if (!existingTags.includes(tag)) {
+                const tagEl = document.createElement('span');
+                let tagClass = 'px-2 py-0.5 rounded text-xs border ';
+                if (tag.includes('Call')) {
+                    tagClass += 'bg-red-500/10 text-red-400 border-red-500/30';
+                } else if (tag.includes('Work')) {
+                    tagClass += 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+                } else if (tag.includes('Premium')) {
+                    tagClass += 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+                } else {
+                    tagClass += 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+                }
+                tagEl.className = tagClass;
+                tagEl.textContent = tag;
+                customerTags.appendChild(tagEl);
+            }
+        });
+    }
+}
+
 function highlightText(text, highlights) {
     if (!highlights || highlights.length === 0) return text;
     
@@ -325,10 +385,11 @@ function addTranscriptLine(item) {
         </div>
     `;
     
-    transcriptContainer.appendChild(transcriptLine);
+    // Append to messages container (flex-col layout means bottom is last)
+    transcriptMessages.appendChild(transcriptLine);
     
-    // Only scroll the transcript container, not the whole page
-    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    // Container uses flex-col-reverse, so scrollTop 0 shows the latest messages
+    // No need to manually scroll - flex-col-reverse handles it
 }
 
 function addTypingIndicator() {
@@ -348,8 +409,7 @@ function addTypingIndicator() {
         </div>
     `;
     
-    transcriptContainer.appendChild(typingDiv);
-    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    transcriptMessages.appendChild(typingDiv);
 }
 
 function removeTypingIndicator() {
@@ -490,6 +550,11 @@ function simulateCall() {
             
             // Add transcript line
             addTranscriptLine(item);
+            
+            // Update customer info if present
+            if (item.customerInfo) {
+                updateCustomerInfo(item.customerInfo);
+            }
             
             // Update sentiment and empathy
             updateSentimentUI(item.sentiment);
