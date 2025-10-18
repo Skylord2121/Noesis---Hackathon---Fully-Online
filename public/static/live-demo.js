@@ -282,6 +282,11 @@ let statusUpdateCount = 0; // Limit status updates to max 4
 let aiRequestCount = 0; // Track AI requests to limit frequency
 let customerHasSpoken = false; // Track if customer has spoken yet
 
+// Live mode state
+let liveMode = false; // Track if in live mode or demo mode
+let recognition = null; // Speech recognition instance
+let isListening = false; // Track if actively listening
+
 // DOM elements
 const transcriptMessages = document.getElementById('transcript-messages');
 const transcriptContainer = document.getElementById('transcript-container');
@@ -926,6 +931,179 @@ function toggleTheme() {
     }
 }
 
+// Initialize Speech Recognition
+function initSpeechRecognition() {
+    // Check if browser supports Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        console.error('Speech Recognition not supported in this browser');
+        return null;
+    }
+    
+    recognition = new SpeechRecognition();
+    recognition.continuous = true; // Keep listening
+    recognition.interimResults = true; // Get interim results
+    recognition.lang = 'en-US';
+    
+    let lastTranscript = '';
+    let lastSpeaker = 'agent'; // Alternate between agent and customer
+    
+    recognition.onresult = (event) => {
+        const result = event.results[event.results.length - 1];
+        const transcript = result[0].transcript;
+        
+        // Only process if it's a final result
+        if (result.isFinal) {
+            console.log('Final transcript:', transcript);
+            
+            // Alternate speaker (simple logic - you can improve this)
+            lastSpeaker = lastSpeaker === 'agent' ? 'customer' : 'agent';
+            const speakerName = lastSpeaker === 'agent' ? 'Agent' : 'Customer';
+            
+            // Add to transcript display
+            addLiveTranscriptLine(speakerName, transcript, lastSpeaker);
+            
+            // Add to conversation history
+            conversationHistory.push({
+                speaker: lastSpeaker,
+                name: speakerName,
+                text: transcript
+            });
+            
+            // If customer spoke, trigger AI analysis
+            if (lastSpeaker === 'customer') {
+                customerHasSpoken = true;
+                aiRequestCount++;
+                if (aiRequestCount % 2 === 1) { // Every other customer message
+                    setTimeout(() => {
+                        analyzeCustomerMessage(transcript, 'Customer', 'Agent');
+                    }, 1500);
+                }
+            }
+            
+            lastTranscript = transcript;
+        }
+    };
+    
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'no-speech') {
+            console.log('No speech detected, continuing...');
+        }
+    };
+    
+    recognition.onend = () => {
+        if (isListening && liveMode) {
+            // Restart if still in live mode
+            recognition.start();
+        }
+    };
+    
+    return recognition;
+}
+
+// Add live transcript line
+function addLiveTranscriptLine(speakerName, text, speakerType) {
+    const isAgent = speakerType === 'agent';
+    const borderColor = isAgent ? 'border-blue-500' : 'border-yellow-500';
+    const textColor = isAgent ? 'text-blue-400' : 'text-yellow-400';
+    const avatar = isAgent ? 
+        `<i class="fas fa-headset text-white text-xs"></i>` :
+        `<span class="text-xs font-semibold">CU</span>`;
+    const bgColor = isAgent ? 'from-blue-500 to-cyan-500' : 'from-yellow-500 to-orange-500';
+    
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const transcriptLine = document.createElement('div');
+    transcriptLine.className = 'transcript-line flex gap-3 group';
+    transcriptLine.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br ${bgColor} flex items-center justify-center flex-shrink-0 ring-2 ring-${isAgent ? 'blue' : 'yellow'}-500/30 text-white">
+            ${avatar}
+        </div>
+        <div class="flex-1 bg-slate-800/20 rounded-lg p-3 border border-${isAgent ? 'blue' : 'yellow'}-500/10">
+            <div class="flex items-start justify-between mb-1">
+                <span class="text-xs font-medium ${textColor}">${speakerName}${isAgent ? ' (Agent)' : ''}</span>
+                <span class="text-xs text-gray-500">${timeStr}</span>
+            </div>
+            <p class="text-sm leading-relaxed">
+                ${text}
+            </p>
+        </div>
+    `;
+    
+    transcriptMessages.appendChild(transcriptLine);
+}
+
+// Toggle between demo and live mode
+function toggleMode() {
+    liveMode = !liveMode;
+    
+    const modeIndicator = document.getElementById('mode-indicator');
+    const modeBtnText = document.getElementById('mode-btn-text');
+    const toggleBtn = document.getElementById('toggle-mode-btn');
+    
+    if (liveMode) {
+        // Switch to live mode
+        callActive = false; // Stop demo simulation
+        
+        // Initialize speech recognition if not already
+        if (!recognition) {
+            recognition = initSpeechRecognition();
+        }
+        
+        if (recognition) {
+            // Start listening
+            try {
+                recognition.start();
+                isListening = true;
+                
+                modeIndicator.innerHTML = `
+                    <div class="w-1.5 h-1.5 bg-red-500 rounded-full live-pulse"></div>
+                    <span class="text-xs font-semibold text-red-400 uppercase tracking-wide">Live</span>
+                `;
+                modeIndicator.className = 'flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/30 rounded-full';
+                
+                modeBtnText.textContent = 'Stop Live';
+                toggleBtn.className = 'px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-semibold rounded border border-red-500/30 transition';
+                
+                showToast('Live mode activated - speak into microphone', 'success');
+            } catch (error) {
+                console.error('Failed to start recognition:', error);
+                showToast('Microphone access denied or unavailable', 'error');
+                liveMode = false;
+            }
+        } else {
+            showToast('Speech recognition not supported in your browser', 'error');
+            liveMode = false;
+        }
+    } else {
+        // Switch back to demo mode
+        if (recognition && isListening) {
+            recognition.stop();
+            isListening = false;
+        }
+        
+        modeIndicator.innerHTML = `
+            <div class="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+            <span class="text-xs font-semibold text-purple-400 uppercase tracking-wide">Demo</span>
+        `;
+        modeIndicator.className = 'flex items-center gap-2 px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-full';
+        
+        modeBtnText.textContent = 'Go Live';
+        toggleBtn.className = 'px-3 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs font-semibold rounded border border-green-500/30 transition';
+        
+        showToast('Demo mode activated', 'success');
+        
+        // Restart demo simulation
+        callActive = true;
+        currentTime = 0;
+        currentIndex = 0;
+        setTimeout(() => simulateCall(), 1000);
+    }
+}
+
 // Start simulation on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize metrics
@@ -940,7 +1118,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('theme-icon').classList.add('fa-sun');
     }
     
-    // Start after a brief delay
+    // Initialize speech recognition (but don't start)
+    initSpeechRecognition();
+    
+    // Start demo after a brief delay
     setTimeout(() => {
         simulateCall();
     }, 1000);
@@ -1144,3 +1325,4 @@ window.closeSettings = closeSettings;
 window.saveSettings = saveSettings;
 window.testOllamaConnection = testOllamaConnection;
 window.toggleHoldResume = toggleHoldResume;
+window.toggleMode = toggleMode;
