@@ -744,8 +744,13 @@ async function testOllamaConnection() {
     statusDiv.className = 'text-sm text-center text-yellow-400';
     
     try {
-        const response = await fetch(`${url}/api/tags`);
-        if (!response.ok) throw new Error('Connection failed');
+        // Call Ollama directly from browser
+        const response = await fetch(`${url}/api/tags`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const data = await response.json();
         const hasModel = data.models?.some(m => m.name === model);
@@ -758,7 +763,7 @@ async function testOllamaConnection() {
             statusDiv.className = 'text-sm text-center text-orange-400';
         }
     } catch (error) {
-        statusDiv.innerHTML = '<i class="fas fa-times-circle mr-2"></i>Connection failed. Make sure Ollama is running.';
+        statusDiv.innerHTML = `<i class="fas fa-times-circle mr-2"></i>Connection failed: ${error.message}. Note: Ollama must be started with CORS enabled. See instructions below.`;
         statusDiv.className = 'text-sm text-center text-red-400';
     }
 }
@@ -782,6 +787,7 @@ Provide a JSON response with:
 
 Keep it short and actionable.`;
 
+        // Call Ollama directly from browser
         const response = await fetch(`${ollamaUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
