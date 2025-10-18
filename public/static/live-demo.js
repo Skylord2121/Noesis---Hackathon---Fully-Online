@@ -605,13 +605,30 @@ function simulateCall() {
             } else if (ollamaEnabled && item.speaker === 'customer') {
                 // Get AI coaching from Ollama for customer messages
                 setTimeout(async () => {
+                    // Show "AI is thinking" indicator
+                    const thinkingCard = document.createElement('div');
+                    thinkingCard.className = 'coaching-card glass-panel p-4 rounded-lg border border-blue-500/30 mb-3';
+                    thinkingCard.innerHTML = `
+                        <div class="flex items-center gap-2 text-blue-400">
+                            <i class="fas fa-brain fa-pulse"></i>
+                            <span class="text-sm">AI is analyzing...</span>
+                        </div>
+                    `;
+                    coachingContainer.appendChild(thinkingCard);
+                    
                     const context = conversationHistory.slice(-5).map(h => 
                         `${h.name}: ${h.text}`
                     ).join('\n');
                     
                     const aiCoaching = await getOllamaCoaching(context);
+                    
+                    // Remove thinking indicator
+                    thinkingCard.remove();
+                    
                     if (aiCoaching) {
                         addCoachingCard(aiCoaching);
+                    } else {
+                        console.warn('No coaching returned from Ollama');
                     }
                 }, 1000);
             }
@@ -769,7 +786,13 @@ async function testOllamaConnection() {
 }
 
 async function getOllamaCoaching(context) {
-    if (!ollamaEnabled) return null;
+    if (!ollamaEnabled) {
+        console.log('Ollama not enabled');
+        return null;
+    }
+    
+    console.log('🤖 Requesting AI coaching from Ollama...');
+    console.log('Context:', context);
     
     try {
         const prompt = `You are an AI coaching assistant for call center agents. Analyze this conversation and provide ONE brief coaching suggestion.
@@ -777,15 +800,22 @@ async function getOllamaCoaching(context) {
 Context:
 ${context}
 
-Provide a JSON response with:
+IMPORTANT: Respond ONLY with valid JSON. No other text.
+
+Required format:
 {
-  "type": "empathy|de-escalation|action|transparency|resolution",
-  "title": "Brief title (max 20 chars)",
-  "message": "Coaching message (max 100 chars)",
-  "phrase": "Suggested phrase to use (max 80 chars, optional)"
+  "type": "empathy",
+  "title": "Acknowledge Feelings",
+  "message": "Customer is frustrated. Show understanding before problem-solving.",
+  "phrase": "I completely understand your frustration with this issue."
 }
 
-Keep it short and actionable.`;
+Type options: empathy, de-escalation, action, transparency, resolution
+Keep title under 20 chars, message under 100 chars, phrase under 80 chars.
+
+JSON response:`;
+
+        console.log('Calling Ollama API:', ollamaUrl, 'Model:', ollamaModel);
 
         // Call Ollama directly from browser
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -802,27 +832,46 @@ Keep it short and actionable.`;
             })
         });
         
-        if (!response.ok) return null;
+        console.log('Ollama response status:', response.status);
+        
+        if (!response.ok) {
+            console.error('Ollama API error:', response.status, response.statusText);
+            return null;
+        }
         
         const data = await response.json();
+        console.log('Ollama raw response:', data);
+        
         const text = data.response;
+        console.log('Response text:', text);
         
         // Try to parse JSON from response
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
+            console.log('Found JSON in response:', jsonMatch[0]);
             const coaching = JSON.parse(jsonMatch[0]);
-            return {
+            const result = {
                 type: coaching.type || 'empathy',
                 title: coaching.title || 'AI Suggestion',
                 message: coaching.message || text.substring(0, 100),
                 phrase: coaching.phrase || null,
                 priority: 2
             };
+            console.log('✅ Parsed coaching:', result);
+            return result;
+        } else {
+            console.warn('No JSON found in response, using raw text');
+            // Fallback: use raw text
+            return {
+                type: 'empathy',
+                title: 'AI Suggestion',
+                message: text.substring(0, 100),
+                phrase: null,
+                priority: 2
+            };
         }
-        
-        return null;
     } catch (error) {
-        console.error('Ollama error:', error);
+        console.error('❌ Ollama error:', error);
         return null;
     }
 }
