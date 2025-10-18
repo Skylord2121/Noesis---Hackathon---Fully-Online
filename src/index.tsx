@@ -236,10 +236,12 @@ Respond ONLY with valid JSON (no markdown, no explanation):
       let predictedCSAT = 5.0  // Neutral CSAT (5/10 scale)
       
       if (voiceMetrics) {
-        // MORE SENSITIVE voice analysis - detect subtle changes
+        // ULTRA SENSITIVE voice analysis - catches subtle frustration
+        // Lowered all thresholds by 10-15 points for better detection
         
         // Very high stress indicators (shouting/very upset)
-        if (voiceMetrics.volume > 70 || voiceMetrics.pitch > 250) {
+        // LOWERED: 70→60, 250→230
+        if (voiceMetrics.volume > 60 || voiceMetrics.pitch > 230) {
           sentiment = 0.1
           stress = 'High'
           empathy = 2.5
@@ -247,7 +249,8 @@ Respond ONLY with valid JSON (no markdown, no explanation):
           predictedCSAT = 3.0
         }
         // High stress (loud + high pitch + fast speech)
-        else if (voiceMetrics.volume > 55 && voiceMetrics.pitch > 220) {
+        // LOWERED: 55→45, 220→200
+        else if (voiceMetrics.volume > 45 && voiceMetrics.pitch > 200) {
           sentiment = 0.2
           stress = 'High'
           empathy = 3.0
@@ -255,7 +258,8 @@ Respond ONLY with valid JSON (no markdown, no explanation):
           predictedCSAT = 3.5
         }
         // Elevated stress (moderately loud OR high pitch)
-        else if (voiceMetrics.volume > 50 || voiceMetrics.pitch > 200) {
+        // LOWERED: 50→40, 200→180
+        else if (voiceMetrics.volume > 40 || voiceMetrics.pitch > 180) {
           sentiment = 0.35
           stress = 'Medium-High'
           empathy = 4.0
@@ -263,7 +267,8 @@ Respond ONLY with valid JSON (no markdown, no explanation):
           predictedCSAT = 4.5
         }
         // Slightly elevated (any sign of stress)
-        else if (voiceMetrics.volume > 45 || voiceMetrics.pitch > 180 || voiceMetrics.speechRate > 4) {
+        // LOWERED: 45→35, 180→160, 4→3.5
+        else if (voiceMetrics.volume > 35 || voiceMetrics.pitch > 160 || voiceMetrics.speechRate > 3.5) {
           sentiment = 0.45
           stress = 'Medium'
           empathy = 4.5
