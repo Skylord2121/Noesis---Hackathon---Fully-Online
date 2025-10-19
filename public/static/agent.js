@@ -680,7 +680,7 @@ function processAIAnalysis(analysis) {
         updateEmotionScore(analysis.emotionScore);
         updateSentiment(analysis.emotionScore);
     }
-    if (analysis.responseQuality !== undefined) {
+    if (analysis.responseQuality !== undefined && analysis.responseQuality !== null) {
         updateResponseQuality(analysis.responseQuality);
     }
     if (analysis.experienceScore !== undefined) {
@@ -724,60 +724,78 @@ async function getConversationAnalysis() {
         const lastCustomer = conversationHistory.filter(m => m.role === 'customer').slice(-1)[0];
         const lastAgent = conversationHistory.filter(m => m.role === 'agent').slice(-1)[0];
         
-        const prompt = `You are analyzing a customer service conversation using a 3-metric system.
+        // Detect negative keywords in customer's message
+        const negativeKeywords = ['frustrated', 'upset', 'angry', 'ridiculous', 'unacceptable', 'terrible', 'tired of', 'sick of', 'disappointed', 'annoyed', 'irritated', 'furious', 'mad', 'hate', 'worst'];
+        const customerText = lastCustomer ? lastCustomer.content.toLowerCase() : '';
+        const foundNegatives = negativeKeywords.filter(kw => customerText.includes(kw));
+        const keywordHint = foundNegatives.length > 0 ? `\n⚠️ DETECTED NEGATIVE KEYWORDS: ${foundNegatives.join(', ')} - Customer emotion should be 1-4!` : '';
+        
+        const prompt = `You are analyzing a customer service conversation. IMPORTANT: Base scores ONLY on actual words used.${keywordHint}
 
-FULL CONVERSATION:
+CONVERSATION:
 ${conversationContext}
 
-=== SCORING SYSTEM ===
+LAST CUSTOMER MESSAGE: "${lastCustomer ? lastCustomer.content : 'None'}"
+AGENT HAS SPOKEN: ${lastAgent ? 'YES' : 'NO'}
 
-1️⃣ EMOTION SCORE (1-10) - Customer's emotional state based on TEXT ONLY:
-   • 1-2 (🔴 Heated): Repetition, abrupt replies, negatives ("ridiculous", "tired of calling")
-   • 3-4 (🟠 Tense): Short sentences, complaints, sighs ("again", "still waiting")
-   • 5-6 (🟡 Neutral): Balanced, factual ("I just want to know what's happening")
-   • 7-8 (🟢 Calm): Cooperative, acknowledging ("thanks for checking", "I appreciate it")
-   • 9-10 (🔵 Positive): Relief, closure ("that helps a lot", "I'm glad it's done")
+=== CRITICAL SCORING INSTRUCTIONS ===
+
+1️⃣ EMOTION SCORE (1-10) - Customer's CURRENT emotional state:
+
+NEGATIVE KEYWORDS (Score 1-4):
+⚠️ CRITICAL: "frustrated" = Score 2-3 (NOT 7!)
+⚠️ CRITICAL: "upset", "angry" = Score 1-2
+- "ridiculous", "unacceptable", "terrible", "awful", "worst"
+- "tired of", "sick of", "again", "still", "why is", "how come"
+- "disappointed", "annoyed", "irritated", "furious", "mad", "hate"
+
+NEUTRAL KEYWORDS (Score 5-6):
+- "help", "need", "want", "can you", "looking for", "wondering"
+- No strong emotion words, just stating facts
+
+POSITIVE KEYWORDS (Score 7-10):
+- "thanks", "thank you", "appreciate", "great", "perfect", "helpful"
+- "understand", "glad", "happy", "good", "excellent"
+
+SCORING RULES:
+• If customer says "frustrated/upset/angry" → Score 2-3 (NOT 7!)
+• If customer complains or mentions problems → Score 3-5
+• If customer is neutral/asking questions → Score 5-6
+• If customer says "thanks/appreciate" → Score 7-8
+• ALWAYS scan for negative keywords FIRST
 
 2️⃣ RESPONSE QUALITY (1-10) - Agent's performance:
-   • 1-3 (🔴 Poor): Robotic, missing empathy, repetitive templates
-   • 4-6 (🟠 Fair): Some empathy, long explanations, delayed acknowledgment
-   • 7-8 (🟡 Good): Balanced tone, reassurance, addresses emotion indirectly
-   • 9-10 (🟢 Excellent): Direct ownership, short warm phrases ("let's fix this now")
 
-3️⃣ EXPERIENCE SCORE (1-10) - Overall trajectory:
-   • 1-3 (🔴 Declining): Escalation, repeated issues, unresolved frustration
-   • 4-6 (🟠 Neutral): Problem pending, mixed tone ("I hope it's fixed")
-   • 7-8 (🟢 Improving): Progress visible, calmer exchanges, understanding grows
-   • 9-10 (🔵 Positive): Resolution reached, appreciation or closure phrases
+⚠️ CRITICAL: If agent hasn't spoken yet, return null for responseQuality!
 
-🔍 ANALYSIS RULES:
-- Focus on KEYWORD PATTERNS: "again", "still", "why" = negative; "thanks", "appreciate" = positive
-- Track TRANSITIONS: Compare last 2-3 messages to see if emotion rises or falls
-- Agent MIRRORING: Does agent match customer tone? Acknowledge frustration?
-- TRAJECTORY: Is the call getting better or worse?
+IF AGENT HAS SPOKEN:
+• 1-3: No empathy, robotic, ignoring emotion
+• 4-6: Some acknowledgment, but delayed or weak
+• 7-8: Direct empathy, acknowledges emotion quickly
+• 9-10: Perfect empathy + action ("I understand, let me fix this now")
 
-📋 Extract customer name and issue type (2 WORDS MAX for issue).
+3️⃣ EXPERIENCE SCORE (1-10) - Call trajectory:
+• 1-3: Customer repeating issue, escalating, getting more upset
+• 4-6: Problem stated, waiting for resolution
+• 7-8: Progress being made, customer calming down
+• 9-10: Issue resolved, customer satisfied
 
-💡 COACHING: Provide 2-3 actionable coaching tips based on:
-   - Current emotion/sentiment state
-   - Agent's response quality (empathy, acknowledgment, solution-focus)
-   - Next best action to improve experience
-   - Specific phrases agent should use or avoid
-   
-   Each coaching item should:
-   - Have a clear 2-4 word title
-   - Provide specific, actionable guidance (10-15 words)
-   - Focus on immediate next steps, not generic advice
-   - Reference specific aspects of the conversation when relevant
+📋 Extract customer name (if mentioned) and issue (2 WORDS MAX).
+
+💡 COACHING - Provide ONLY 1 coaching item:
+   - If customer is upset (emotion 1-4): Focus on empathy/acknowledgment
+   - If agent hasn't spoken: Tell agent to acknowledge emotion first
+   - If call is progressing (emotion 5+): Focus on next action/solution
+   - Keep message under 12 words, make it actionable
 
 Respond ONLY with valid JSON:
 {
   "emotionScore": 1-10,
-  "responseQuality": 1-10,
+  "responseQuality": 1-10 or null,
   "experienceScore": 1-10,
   "customerName": "Name or null",
   "issue": "2 words max",
-  "coaching": [{"type": "empathy|knowledge|action|critical", "title": "2-4 words", "message": "10-15 words with specific guidance"}]
+  "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "under 12 words"}]
 }`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -1068,7 +1086,10 @@ function updateCoaching(coachingItems) {
     
     container.innerHTML = '';
     
-    for (const item of coachingItems) {
+    // Only show the first coaching item for focused, actionable guidance
+    const itemsToShow = coachingItems.slice(0, 1);
+    
+    for (const item of itemsToShow) {
         // Handle verification action
         if (item.action === 'verify-customer') {
             updateVerificationStatus(true);
