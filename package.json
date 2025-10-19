@@ -6,7 +6,11 @@
     "build": "vite build",
     "preview": "wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "whisper": "python whisper_server.py",
+    "whisper:install": "pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && pip install openai-whisper flask flask-cors ffmpeg-python",
+    "whisper:test": "python -c \"import whisper; import torch; print('Whisper:', whisper.__version__); print('GPU:', torch.cuda.is_available())\"",
+    "whisper:health": "curl http://localhost:5000/health"
   },
   "dependencies": {
     "hono": "^4.9.12"
