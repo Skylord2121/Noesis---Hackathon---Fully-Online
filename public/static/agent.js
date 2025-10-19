@@ -1499,7 +1499,7 @@ async function testOllamaConnection() {
                     // Update configured model display (only if not already configured)
                     const modelDisplay = document.getElementById('ollama-model-display');
                     if (modelDisplay && modelDisplay.textContent === 'Not configured') {
-                        const modelName = data.models[0]?.name || 'qwen2.5:3b';
+                        const modelName = data.models[0]?.name || 'default';
                         modelDisplay.textContent = modelName;
                         modelDisplay.className = 'text-green-300 font-semibold';
                     }
@@ -1554,7 +1554,7 @@ async function testOllamaConnection() {
                         // Update configured model display (only if not already configured)
                         const modelDisplay = document.getElementById('ollama-model-display');
                         if (modelDisplay && modelDisplay.textContent === 'Not configured') {
-                            const modelName = data.models[0]?.name || 'qwen2.5:3b';
+                            const modelName = data.models[0]?.name || 'default';
                             modelDisplay.textContent = modelName;
                             modelDisplay.className = 'text-green-300 font-semibold';
                         }
