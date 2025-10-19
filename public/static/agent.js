@@ -1391,8 +1391,12 @@ function saveOllamaSettings() {
 
 // Load Ollama settings on page load
 function loadOllamaSettings() {
-    const url = localStorage.getItem('ollama-host') || '';
-    const model = localStorage.getItem('ollama-model') || '';
+    // Default values
+    const defaultUrl = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
+    const defaultModel = 'default';
+    
+    const url = localStorage.getItem('ollama-host') || defaultUrl;
+    const model = localStorage.getItem('ollama-model') || defaultModel;
     
     // Update input fields
     const urlInput = document.getElementById('ollama-url-input');
@@ -1406,13 +1410,23 @@ function loadOllamaSettings() {
     const modelDisplay = document.getElementById('ollama-model-display');
     
     if (urlDisplay) {
-        urlDisplay.textContent = url || 'Not configured';
-        urlDisplay.title = url || 'Not configured';
+        const displayUrl = url || 'Not configured';
+        urlDisplay.textContent = displayUrl;
+        urlDisplay.title = displayUrl;
         urlDisplay.className = url ? 'text-blue-300 font-semibold truncate max-w-[180px]' : 'text-gray-400 truncate max-w-[180px]';
     }
     if (modelDisplay) {
-        modelDisplay.textContent = model || 'Not configured';
+        const displayModel = model || 'Not configured';
+        modelDisplay.textContent = displayModel;
         modelDisplay.className = model ? 'text-blue-300 font-semibold' : 'text-gray-400';
+    }
+    
+    // Auto-save defaults if not already configured
+    if (!localStorage.getItem('ollama-host') && url === defaultUrl) {
+        localStorage.setItem('ollama-host', url);
+    }
+    if (!localStorage.getItem('ollama-model') && model === defaultModel) {
+        localStorage.setItem('ollama-model', model);
     }
     
     console.log('[OLLAMA] Settings loaded:', { url, model });
@@ -1588,6 +1602,114 @@ async function testOllamaConnection() {
         console.error('[OLLAMA TEST] ✗ Failed:', error.message);
     } finally {
         testBtn.disabled = false;
+    }
+}
+
+// Quick ping test for Ollama connection
+async function pingOllamaConnection() {
+    const statusIcon = document.getElementById('ollama-status-icon');
+    const statusText = document.getElementById('ollama-status-text');
+    const latencyDisplay = document.getElementById('ollama-latency');
+    const pingBtn = document.getElementById('ping-ollama-btn');
+    
+    if (!statusIcon || !statusText || !latencyDisplay || !pingBtn) return;
+    
+    // Show pinging state
+    statusIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin text-yellow-400"></i>';
+    statusText.textContent = 'Pinging...';
+    statusText.className = 'text-xs font-semibold text-yellow-300 flex items-center gap-1.5';
+    pingBtn.disabled = true;
+    
+    const startTime = Date.now();
+    
+    try {
+        // Get configured URL from localStorage or input field
+        const urlInput = document.getElementById('ollama-url-input');
+        const configuredUrl = urlInput?.value.trim() || localStorage.getItem('ollama-host') || '';
+        
+        if (!configuredUrl) {
+            statusIcon.innerHTML = '<i class="fas fa-exclamation-circle text-yellow-400"></i>';
+            statusText.textContent = 'Please configure URL first';
+            statusText.className = 'text-xs font-semibold text-yellow-300 flex items-center gap-1.5';
+            pingBtn.disabled = false;
+            return;
+        }
+        
+        // Get configured model
+        const modelInput = document.getElementById('ollama-model-input');
+        const configuredModel = modelInput?.value.trim() || localStorage.getItem('ollama-model') || 'default';
+        
+        // Remove /api/generate if present in URL
+        const baseUrl = configuredUrl.replace(/\/api\/generate$/, '');
+        
+        // Send a simple ping request using the /api/generate endpoint
+        const response = await fetch(`${baseUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: configuredModel,
+                prompt: 'ping',
+                stream: false
+            }),
+            signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        const latency = Date.now() - startTime;
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Success state
+            statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-400"></i>';
+            statusText.textContent = 'Connected ✓';
+            statusText.className = 'text-xs font-semibold text-green-300 flex items-center gap-1.5';
+            latencyDisplay.textContent = `${latency}ms`;
+            latencyDisplay.className = 'text-green-300 font-semibold';
+            
+            // Update model display with ping result
+            const modelDisplay = document.getElementById('ollama-model-display');
+            if (modelDisplay) {
+                modelDisplay.textContent = data.model || configuredModel;
+                modelDisplay.className = 'text-green-300 font-semibold';
+            }
+            
+            console.log('[OLLAMA PING] ✓ Success:', { latency: `${latency}ms`, model: data.model });
+            
+            // Hide models display for ping (only show on full test)
+            const modelsDisplay = document.getElementById('ollama-models-display');
+            if (modelsDisplay) {
+                modelsDisplay.classList.add('hidden');
+            }
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        // Failure state
+        statusIcon.innerHTML = '<i class="fas fa-times-circle text-red-400"></i>';
+        
+        let errorMsg = 'Connection Failed';
+        if (error.name === 'TimeoutError') {
+            errorMsg = 'Timeout (>10s)';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMsg = 'Cannot Reach';
+        } else if (error.message.includes('HTTP')) {
+            errorMsg = error.message;
+        }
+        
+        statusText.textContent = `✗ ${errorMsg}`;
+        statusText.className = 'text-xs font-semibold text-red-300 flex items-center gap-1.5';
+        latencyDisplay.textContent = '--';
+        latencyDisplay.className = 'text-gray-400';
+        
+        // Hide models display on failure
+        const modelsDisplay = document.getElementById('ollama-models-display');
+        if (modelsDisplay) {
+            modelsDisplay.classList.add('hidden');
+        }
+        
+        console.error('[OLLAMA PING] ✗ Failed:', error.message);
+    } finally {
+        pingBtn.disabled = false;
     }
 }
 

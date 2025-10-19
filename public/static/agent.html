@@ -1006,11 +1006,11 @@
                             <input 
                                 type="text" 
                                 id="ollama-url-input"
-                                value=""
+                                value="https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate"
                                 placeholder="https://your-ollama-endpoint.com OR http://localhost:11434"
                                 class="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
                             />
-                            <p class="text-xs text-gray-500 mt-1">Your Ollama endpoint (no /api/generate path)</p>
+                            <p class="text-xs text-gray-500 mt-1">Your Ollama endpoint (with or without /api/generate)</p>
                         </div>
                         
                         <!-- Model Input -->
@@ -1022,7 +1022,7 @@
                             <input 
                                 type="text" 
                                 id="ollama-model-input"
-                                value=""
+                                value="default"
                                 placeholder="qwen2.5:latest OR llama3:8b"
                                 class="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
                             />
@@ -1066,7 +1066,7 @@
                         </div>
                         
                         <!-- Action Buttons -->
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <button 
                                 id="save-ollama-btn"
                                 onclick="saveOllamaSettings()" 
@@ -1074,6 +1074,14 @@
                             >
                                 <i class="fas fa-save"></i>
                                 <span>Save</span>
+                            </button>
+                            <button 
+                                id="ping-ollama-btn"
+                                onclick="pingOllamaConnection()" 
+                                class="px-3 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2"
+                            >
+                                <i class="fas fa-signal"></i>
+                                <span>Ping</span>
                             </button>
                             <button 
                                 id="test-ollama-btn"
