@@ -156,13 +156,13 @@ Respond ONLY with valid JSON (no markdown, no explanation):
     // Use environment variable for Ollama URL (supports ngrok tunnels)
     const ollamaUrl = c.env?.OLLAMA_URL || 'http://localhost:11434'
     console.log('[OLLAMA] Calling Ollama at', ollamaUrl + '/api/generate')
-    console.log('[OLLAMA] Model: qwen2.5:8b')
+    console.log('[OLLAMA] Model: qwen3:8b')
     
     const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen2.5:8b',
+        model: 'qwen3:8b',
         prompt: prompt,
         stream: false,
         options: {
@@ -273,7 +273,7 @@ app.post('/api/test-ollama', async (c) => {
   try {
     const { ollamaUrl, model } = await c.req.json()
     const url = ollamaUrl || 'http://localhost:11434'
-    const testModel = model || 'qwen2.5:8b'
+    const testModel = 'qwen3:8b'  // Always use Qwen3 8B
     
     // Test 1: Check if Ollama server is reachable
     const tagsResponse = await fetch(`${url}/api/tags`, {
@@ -352,7 +352,7 @@ app.post('/api/analyze-message', async (c) => {
   try {
     const { customerMessage, conversationHistory, agentName, customerName, ollamaUrl, model } = await c.req.json()
     const url = ollamaUrl || 'http://localhost:11434'
-    const ollamaModel = model || 'qwen2.5:8b'
+    const ollamaModel = 'qwen3:8b'  // Always use Qwen3 8B
     
     // Build conversation context for Ollama
     let context = "You are an expert call center coach analyzing a customer service conversation in real-time.\n\n"
