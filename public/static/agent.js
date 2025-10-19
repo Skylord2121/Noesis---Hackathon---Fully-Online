@@ -20,8 +20,8 @@ let agentRecognition = null;
 let isAgentSpeaking = false;
 let isAgentRecognitionActive = false;
 
-// AI connection (now using Cloudflare AI - always available)
-let ollamaConnected = true; // Always true since it's cloud-based
+// AI connection (Ollama only - required for all analysis)
+let ollamaConnected = true; // Assume connected until test fails
 
 // Call timer
 let callStartTime = null;
@@ -210,16 +210,27 @@ async function fetchNewMessages() {
             console.log(`[AGENT] Received ${data.messages.length} new message(s)`);
             for (const message of data.messages) {
                 console.log(`[AGENT] Processing message:`, message);
+                
+                // ALWAYS update timestamp for ANY message (customer or agent)
+                // This prevents duplicate processing
+                if (message.timestamp > lastMessageTimestamp) {
+                    lastMessageTimestamp = message.timestamp;
+                    console.log('[AGENT] Updated lastMessageTimestamp to:', lastMessageTimestamp);
+                }
+                
                 if (message.role === 'customer') {
                     console.log('[AGENT] CUSTOMER MESSAGE:', message.content);
+                    
                     // Customer message received with voice metrics
                     await handleCustomerMessage(message.content, message.voiceMetrics);
-                    lastMessageTimestamp = message.timestamp;
                     
                     if (!customerHasSpoken) {
                         customerHasSpoken = true;
                         console.log('[AGENT] First customer message received!');
                     }
+                } else if (message.role === 'agent') {
+                    // Agent's own messages - just log, don't process
+                    console.log('[AGENT] Own message echoed back:', message.content.substring(0, 50));
                 }
             }
         } else {
@@ -284,8 +295,7 @@ async function fetchVoiceMetrics() {
         const data = await response.json();
         
         if (data.metrics && data.metrics.volume > 0) {
-            // Update spectrum bars with real-time voice data
-            animateCustomerSpectrumWithMetrics(data.metrics);
+            // Voice metrics received - will implement spectrum later
         }
     } catch (error) {
         // Silent fail - not critical
@@ -294,9 +304,11 @@ async function fetchVoiceMetrics() {
 
 // Handle incoming customer message with voice metrics
 async function handleCustomerMessage(text, voiceMetrics = null) {
-    console.log('[AGENT] handleCustomerMessage called');
-    console.log('[AGENT] Customer said:', text);
-    console.log('[AGENT] Voice metrics:', voiceMetrics);
+    console.log('=================================================');
+    console.log('[CUSTOMER MESSAGE] New customer response received');
+    console.log('[CUSTOMER MESSAGE] Text:', text);
+    console.log('[CUSTOMER MESSAGE] Voice metrics:', voiceMetrics);
+    console.log('=================================================');
     
     // Add to conversation history with voice data (before transcript for AI analysis)
     conversationHistory.push({
@@ -307,25 +319,22 @@ async function handleCustomerMessage(text, voiceMetrics = null) {
     });
     console.log('[AGENT] Conversation history updated, total messages:', conversationHistory.length);
     
-    // Animate spectrum bars when customer speaks with voice metrics
-    console.log('[AGENT] Animating customer spectrum...');
-    if (voiceMetrics && voiceMetrics.volume > 0) {
-        animateCustomerSpectrumWithMetrics(voiceMetrics);
-    } else {
-        animateCustomerSpectrum();
-    }
-    
-    // Get AI analysis first to obtain emotion score
+    // Get AI analysis for the ENTIRE conversation (customer + agent)
+    // This analyzes: Emotion (customer state), Response Quality (agent performance), Experience (trajectory)
     let emotionScore = null;
+    console.log('[AI] 🤖 Analyzing conversation with new 3-metric system...');
     try {
-        const analysis = await getAIAnalysis(text, voiceMetrics);
-        if (analysis && analysis.empathy !== undefined) {
-            emotionScore = analysis.empathy;
-            // Process all other metrics
+        const analysis = await getConversationAnalysis();
+        if (analysis) {
+            console.log('[AI] ✓ Received analysis - Emotion:', analysis.emotionScore, 'Response:', analysis.responseQuality, 'Experience:', analysis.experienceScore);
+            emotionScore = analysis.emotionScore;
+            // Process all metrics and update UI
             processAIAnalysis(analysis);
+        } else {
+            console.warn('[AI] ⚠️ No analysis returned from Ollama');
         }
     } catch (error) {
-        console.error('[AGENT] Error getting AI analysis:', error);
+        console.error('[AI] ❌ Error getting AI analysis:', error);
     }
     
     // Add to transcript WITH emotion score
@@ -334,53 +343,6 @@ async function handleCustomerMessage(text, voiceMetrics = null) {
 }
 
 // Animate customer voice spectrum with real voice metrics
-function animateCustomerSpectrumWithMetrics(voiceMetrics) {
-    const bars = document.querySelectorAll('.spectrum-bar');
-    if (!bars || bars.length === 0) return;
-    
-    console.log('[AGENT] Animating spectrum with voice data:', voiceMetrics);
-    
-    // Calculate intensity based on volume and energy
-    const intensity = Math.min((voiceMetrics.volume + voiceMetrics.energy) / 100, 1.5);
-    const duration = voiceMetrics.speechRate > 3 ? 0.8 : 1.2; // Faster animation for faster speech
-    
-    // Animate bars based on actual voice metrics
-    bars.forEach((bar, index) => {
-        const scale = 0.2 + (intensity * (0.8 + Math.random() * 0.4));
-        bar.style.animation = `wave ${duration}s ease-in-out infinite`;
-        bar.style.animationDelay = `${index * 0.05}s`;
-        bar.style.setProperty('--scale-height', scale.toString());
-    });
-    
-    // Keep animating for 3 seconds then fade out
-    setTimeout(() => {
-        bars.forEach(bar => {
-            bar.style.animation = 'none';
-            bar.style.transform = 'scaleY(0.1)';
-        });
-    }, 3000);
-}
-
-// Animate customer voice spectrum (fallback without metrics)
-function animateCustomerSpectrum() {
-    const bars = document.querySelectorAll('.spectrum-bar');
-    if (!bars || bars.length === 0) return;
-    
-    // Animate bars for 2 seconds
-    bars.forEach((bar, index) => {
-        bar.style.animation = 'wave 1.5s ease-in-out infinite';
-        bar.style.animationDelay = `${index * 0.05}s`;
-    });
-    
-    // Stop animation after 2 seconds
-    setTimeout(() => {
-        bars.forEach(bar => {
-            bar.style.animation = 'none';
-            bar.style.transform = 'scaleY(0.1)';
-        });
-    }, 2000);
-}
-
 // Send agent's response to customer
 async function sendAgentMessage(text) {
     console.log('[AGENT] sendAgentMessage called with:', text);
@@ -412,6 +374,19 @@ async function sendAgentMessage(text) {
         
         console.log('[AGENT] Message sent successfully to API');
         
+        // Check for verification phrases in agent message
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes('you\'ve been verified') || 
+            lowerText.includes('you have been verified') ||
+            lowerText.includes('you are verified') ||
+            lowerText.includes('you\'re verified') ||
+            lowerText.includes('verified you') ||
+            lowerText.includes('verification complete')) {
+            console.log('[AGENT] Verification phrase detected! Updating status...');
+            updateVerificationStatus(true);
+            showToast('Customer verified ✓', 'success');
+        }
+        
         // Add to local transcript
         console.log('[AGENT] Adding to transcript UI...');
         addTranscriptMessage('agent', text);
@@ -422,6 +397,18 @@ async function sendAgentMessage(text) {
             content: text,
             timestamp: Date.now()
         });
+        
+        // Analyze agent's response quality
+        console.log('[AI] 🤖 Analyzing agent response quality...');
+        try {
+            const analysis = await getConversationAnalysis();
+            if (analysis) {
+                console.log('[AI] ✓ Response Quality:', analysis.responseQuality, 'Experience:', analysis.experienceScore);
+                processAIAnalysis(analysis);
+            }
+        } catch (error) {
+            console.error('[AI] ❌ Error analyzing agent response:', error);
+        }
         
         console.log('[AGENT] Agent message processed completely');
         
@@ -547,10 +534,13 @@ function toggleAgentSpeaking() {
     }
 }
 
-function startAgentSpeaking() {
+async function startAgentSpeaking() {
     try {
         console.log('[AGENT] Starting agent speaking mode');
         console.log('[AGENT] Current session ID:', currentSessionId);
+        
+        // Start spectrum visualization
+        await startAgentSpectrum();
         
         if (!isAgentRecognitionActive) {
             console.log('[AGENT] Starting speech recognition...');
@@ -584,6 +574,9 @@ function stopAgentSpeaking() {
         
         // Set flag first to prevent auto-restart
         isAgentSpeaking = false;
+        
+        // Stop spectrum visualization
+        stopAgentSpectrum();
         
         if (isAgentRecognitionActive) {
             console.log('[AGENT] Stopping speech recognition...');
@@ -682,25 +675,18 @@ function updateModeIndicator(mode) {
 function processAIAnalysis(analysis) {
     if (!analysis) return;
     
-    // Update metrics
-    if (analysis.sentiment !== undefined) {
-        updateSentimentUI(analysis.sentiment);
+    // NEW 3-METRIC SYSTEM
+    if (analysis.emotionScore !== undefined) {
+        updateEmotionScore(analysis.emotionScore);
     }
-    if (analysis.empathy !== undefined) {
-        updateEmpathyScore(analysis.empathy);
+    if (analysis.responseQuality !== undefined) {
+        updateResponseQuality(analysis.responseQuality);
     }
-    if (analysis.quality !== undefined) {
-        updateQualityScore(analysis.quality);
+    if (analysis.experienceScore !== undefined) {
+        updateExperienceScore(analysis.experienceScore);
     }
-    if (analysis.stress) {
-        updateStressLevel(analysis.stress);
-    }
-    if (analysis.clarity) {
-        updateClarity(analysis.clarity);
-    }
-    if (analysis.predictedCSAT !== undefined) {
-        updatePredictedCSAT(analysis.predictedCSAT);
-    }
+    
+
     
     // Update customer info - lock name once detected
     if (analysis.customerName && !customerNameFixed && analysis.customerName !== 'Unknown') {
@@ -720,28 +706,209 @@ function processAIAnalysis(analysis) {
     }
 }
 
-// Get AI analysis via Cloudflare AI (cloud-based)
-async function getAIAnalysis(text, voiceMetrics = null) {
+// NEW: Get comprehensive conversation analysis (Emotion + Response + Experience)
+async function getConversationAnalysis() {
     try {
-        const requestBody = {
-            text: text,
-            conversationHistory: conversationHistory
-        };
+        const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
+        const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
         
-        // Include voice metrics if available
-        if (voiceMetrics) {
-            requestBody.voiceMetrics = voiceMetrics;
-        }
+        console.log('[AI] 🤖 Analyzing full conversation with 3-metric system');
         
-        const response = await fetch('/api/ai-analysis', {
+        // Build full conversation context
+        const conversationContext = conversationHistory
+            .map((msg, idx) => `[${idx + 1}] ${msg.role.toUpperCase()}: ${msg.content}`)
+            .join('\n');
+        
+        // Get last customer message
+        const lastCustomer = conversationHistory.filter(m => m.role === 'customer').slice(-1)[0];
+        const lastAgent = conversationHistory.filter(m => m.role === 'agent').slice(-1)[0];
+        
+        const prompt = `You are analyzing a customer service conversation using a 3-metric system.
+
+FULL CONVERSATION:
+${conversationContext}
+
+=== SCORING SYSTEM ===
+
+1️⃣ EMOTION SCORE (1-10) - Customer's emotional state based on TEXT ONLY:
+   • 1-2 (🔴 Heated): Repetition, abrupt replies, negatives ("ridiculous", "tired of calling")
+   • 3-4 (🟠 Tense): Short sentences, complaints, sighs ("again", "still waiting")
+   • 5-6 (🟡 Neutral): Balanced, factual ("I just want to know what's happening")
+   • 7-8 (🟢 Calm): Cooperative, acknowledging ("thanks for checking", "I appreciate it")
+   • 9-10 (🔵 Positive): Relief, closure ("that helps a lot", "I'm glad it's done")
+
+2️⃣ RESPONSE QUALITY (1-10) - Agent's performance:
+   • 1-3 (🔴 Poor): Robotic, missing empathy, repetitive templates
+   • 4-6 (🟠 Fair): Some empathy, long explanations, delayed acknowledgment
+   • 7-8 (🟡 Good): Balanced tone, reassurance, addresses emotion indirectly
+   • 9-10 (🟢 Excellent): Direct ownership, short warm phrases ("let's fix this now")
+
+3️⃣ EXPERIENCE SCORE (1-10) - Overall trajectory:
+   • 1-3 (🔴 Declining): Escalation, repeated issues, unresolved frustration
+   • 4-6 (🟠 Neutral): Problem pending, mixed tone ("I hope it's fixed")
+   • 7-8 (🟢 Improving): Progress visible, calmer exchanges, understanding grows
+   • 9-10 (🔵 Positive): Resolution reached, appreciation or closure phrases
+
+🔍 ANALYSIS RULES:
+- Focus on KEYWORD PATTERNS: "again", "still", "why" = negative; "thanks", "appreciate" = positive
+- Track TRANSITIONS: Compare last 2-3 messages to see if emotion rises or falls
+- Agent MIRRORING: Does agent match customer tone? Acknowledge frustration?
+- TRAJECTORY: Is the call getting better or worse?
+
+📋 Extract customer name and issue type.
+
+💡 COACHING: Give 1-2 ultra-short nudges (3-5 words) based on current state.
+
+Respond ONLY with valid JSON:
+{
+  "emotionScore": 1-10,
+  "responseQuality": 1-10,
+  "experienceScore": 1-10,
+  "customerName": "Name or null",
+  "issue": "Issue type",
+  "coaching": [{"type": "empathy|knowledge|action", "title": "2-4 words", "message": "3-5 words"}]
+}`;
+        
+        const response = await fetch(`${ollamaUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                stream: false,
+                options: {
+                    temperature: 0.3,
+                    num_predict: 600
+                }
+            })
         });
         
-        if (!response.ok) throw new Error('AI analysis request failed');
+        if (!response.ok) {
+            console.error('[AI] ❌ Ollama error:', response.status);
+            return null;
+        }
         
-        const data = await response.json();
+        const ollamaData = await response.json();
+        const responseText = ollamaData.response.trim();
+        
+        console.log('[AI] Raw response:', responseText.substring(0, 300));
+        
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('[AI] No JSON found');
+            return null;
+        }
+        
+        const analysis = JSON.parse(jsonMatch[0]);
+        console.log('[AI] ✓ Parsed analysis:', analysis);
+        
+        return analysis;
+        
+    } catch (error) {
+        console.error('[AI] Analysis error:', error);
+        return null;
+    }
+}
+
+// LEGACY: Get AI analysis via Ollama (kept for compatibility)
+async function getAIAnalysis(text, voiceMetrics = null) {
+    try {
+        // Call Ollama DIRECTLY from browser (not through backend)
+        // This works because user runs: $env:OLLAMA_ORIGINS="*"; ollama serve
+        const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
+        const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
+        
+        console.log('[AI] 🤖 Calling Ollama DIRECTLY from browser');
+        console.log('[AI] URL:', ollamaUrl);
+        console.log('[AI] Model:', model);
+        
+        // Build context for Ollama
+        const conversationContext = conversationHistory
+            .slice(-10)
+            .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
+            .join('\n');
+        
+        let voiceContext = '';
+        if (voiceMetrics && voiceMetrics.volume > 0) {
+            voiceContext = `\nVOICE ANALYSIS:
+- Volume: ${voiceMetrics.volume}/100 (${voiceMetrics.volume > 60 ? 'LOUD' : 'Normal'})
+- Pitch: ${voiceMetrics.pitch}Hz (${voiceMetrics.pitch > 250 ? 'HIGH' : 'Normal'})
+- Speech Rate: ${voiceMetrics.speechRate} words/sec
+- Energy: ${voiceMetrics.energy}/100\n`;
+        }
+        
+        const prompt = `You are an expert customer service analyst. Analyze the customer's CURRENT message and tone.
+
+RECENT CONVERSATION:
+${conversationContext}
+
+CURRENT CUSTOMER MESSAGE: "${text}"
+${voiceContext}
+
+IMPORTANT - SENTIMENT ANALYSIS:
+1. Read the WORDS the customer is saying:
+   - "happy", "great", "thank you", "wonderful" = HIGH sentiment (0.7-1.0)
+   - "okay", "fine", "alright" = NEUTRAL (0.5-0.7)
+   - "frustrated", "upset", "angry", "disappointed" = LOW sentiment (0.0-0.4)
+2. If customer SAYS they are happy/frustrated, TRUST their words
+3. Voice metrics are SECONDARY to actual words
+
+COACHING RULES:
+- Keep messages SUPER SHORT (3-5 words max)
+- Give quick nudges, not full sentences
+- Use action verbs: "Ask", "Offer", "Acknowledge", "Verify"
+- Think: What can agent quickly glance and do?
+
+GOOD COACHING EXAMPLES:
+{"type": "empathy", "title": "Match their energy", "message": "Mirror happy tone"}
+{"type": "action", "title": "Verify account", "message": "Ask email + phone"}
+{"type": "knowledge", "title": "Refund policy", "message": "30 days full refund"}
+
+Respond with ONLY valid JSON:
+{
+  "sentiment": 0.0-1.0,
+  "empathy": 0-10,
+  "quality": 0-10,
+  "stress": "Low|Medium|High",
+  "clarity": "Poor|Fair|Good|Excellent",
+  "predictedCSAT": 0-10,
+  "customerName": "Name or null",
+  "issue": "Issue type",
+  "coaching": [{"type": "empathy|knowledge|action", "title": "2-4 words", "message": "3-5 words"}]
+}`;
+        
+        const response = await fetch(`${ollamaUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                stream: false,
+                options: {
+                    temperature: 0.3,
+                    num_predict: 500
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            console.error('[AI] ❌ Ollama returned error:', response.status, response.statusText);
+            throw new Error('Ollama request failed');
+        }
+        
+        const ollamaData = await response.json();
+        const responseText = ollamaData.response.trim();
+        
+        console.log('[AI] Raw Ollama response:', responseText.substring(0, 200));
+        
+        // Extract JSON from response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('[AI] No JSON found in response');
+            throw new Error('Invalid Ollama response format');
+        }
+        
+        const data = { success: true, analysis: JSON.parse(jsonMatch[0]), aiSource: 'ollama' };
         
         if (data.success && data.analysis) {
             const parsed = data.analysis;
@@ -749,11 +916,9 @@ async function getAIAnalysis(text, voiceMetrics = null) {
             // Log AI source for debugging
             console.log(`[AI] Analysis from: ${data.aiSource || 'unknown'}`);
             if (data.aiSource === 'ollama') {
-                console.log('[AI] ✓ Ollama is working!');
-            } else if (data.aiSource === 'cloudflare') {
-                console.log('[AI] Using Cloudflare AI (Ollama not available)');
+                console.log('[AI] ✓ Ollama analysis successful!');
             } else {
-                console.log('[AI] Using fallback rules (AI unavailable)');
+                console.warn('[AI] ⚠️ Expected Ollama but got:', data.aiSource);
             }
             
             // Post-process: don't lock name/issue on first message if not confident
@@ -776,59 +941,86 @@ async function getAIAnalysis(text, voiceMetrics = null) {
     }
 }
 
-// UI update functions (simplified versions from live-demo.js)
-function updateSentimentUI(sentiment) {
-    const label = document.getElementById('sentiment-label');
-    if (!label) return;
+// NEW 3-METRIC SYSTEM UI UPDATES
+function updateEmotionScore(score) {
+    const elem = document.getElementById('emotion-score');
+    const label = document.getElementById('emotion-label');
+    if (!elem) return;
     
-    if (sentiment < 0.3) {
-        label.textContent = 'Upset';
-        label.className = 'font-semibold text-red-400';
-    } else if (sentiment < 0.5) {
-        label.textContent = 'Frustrated';
-        label.className = 'font-semibold text-orange-400';
-    } else if (sentiment < 0.7) {
-        label.textContent = 'Neutral';
-        label.className = 'font-semibold text-yellow-400';
-    } else {
-        label.textContent = 'Happy';
-        label.className = 'font-semibold text-green-400';
+    elem.textContent = score.toFixed(1);
+    
+    // Update label and color based on score
+    if (label) {
+        if (score <= 2) {
+            label.textContent = 'Heated';
+            label.className = 'text-xs font-semibold text-red-400';
+        } else if (score <= 4) {
+            label.textContent = 'Tense';
+            label.className = 'text-xs font-semibold text-orange-400';
+        } else if (score <= 6) {
+            label.textContent = 'Neutral';
+            label.className = 'text-xs font-semibold text-yellow-400';
+        } else if (score <= 8) {
+            label.textContent = 'Calm';
+            label.className = 'text-xs font-semibold text-green-400';
+        } else {
+            label.textContent = 'Positive';
+            label.className = 'text-xs font-semibold text-blue-400';
+        }
     }
 }
 
-function updateEmpathyScore(score) {
-    const elem = document.getElementById('empathy-score');
-    if (elem) elem.textContent = score.toFixed(1);
-}
-
-function updateQualityScore(score) {
-    const elem = document.getElementById('quality-score');
-    if (elem) elem.textContent = score.toFixed(1);
-}
-
-function updateStressLevel(stress) {
-    const label = document.getElementById('stress-label');
-    if (!label) return;
+function updateResponseQuality(score) {
+    const elem = document.getElementById('response-score');
+    const label = document.getElementById('response-label');
+    if (!elem) return;
     
-    label.textContent = stress;
-    if (stress === 'High') {
-        label.className = 'font-semibold text-red-400';
-    } else if (stress === 'Medium') {
-        label.className = 'font-semibold text-orange-400';
-    } else {
-        label.className = 'font-semibold text-green-400';
+    elem.textContent = score.toFixed(1);
+    
+    // Update label and color based on score
+    if (label) {
+        if (score <= 3) {
+            label.textContent = 'Poor';
+            label.className = 'text-xs font-semibold text-red-400';
+        } else if (score <= 6) {
+            label.textContent = 'Fair';
+            label.className = 'text-xs font-semibold text-orange-400';
+        } else if (score <= 8) {
+            label.textContent = 'Good';
+            label.className = 'text-xs font-semibold text-yellow-400';
+        } else {
+            label.textContent = 'Excellent';
+            label.className = 'text-xs font-semibold text-green-400';
+        }
     }
 }
 
-function updateClarity(clarity) {
-    const label = document.getElementById('clarity-label');
-    if (label) label.textContent = clarity;
+function updateExperienceScore(score) {
+    const elem = document.getElementById('experience-score');
+    const label = document.getElementById('experience-label');
+    if (!elem) return;
+    
+    elem.textContent = score.toFixed(1);
+    
+    // Update label and color based on score
+    if (label) {
+        if (score <= 3) {
+            label.textContent = 'Declining';
+            label.className = 'text-xs font-semibold text-red-400';
+        } else if (score <= 6) {
+            label.textContent = 'Neutral';
+            label.className = 'text-xs font-semibold text-orange-400';
+        } else if (score <= 8) {
+            label.textContent = 'Improving';
+            label.className = 'text-xs font-semibold text-green-400';
+        } else {
+            label.textContent = 'Positive';
+            label.className = 'text-xs font-semibold text-blue-400';
+        }
+    }
 }
 
-function updatePredictedCSAT(csat) {
-    const elem = document.getElementById('predicted-csat');
-    if (elem) elem.textContent = csat.toFixed(1);
-}
+
 
 function updateCustomerInfo(analysis) {
     if (analysis.customerName) {
@@ -1684,6 +1876,115 @@ function openDocumentsFolder() {
             });
         }
     }
+}
+
+// Agent voice spectrum visualization
+let agentAudioContext = null;
+let agentAnalyser = null;
+let agentStream = null;
+let agentAnimationId = null;
+
+async function startAgentSpectrum() {
+    try {
+        // Get microphone access
+        agentStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
+        
+        // Create audio context
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        agentAudioContext = new AudioContext();
+        agentAnalyser = agentAudioContext.createAnalyser();
+        agentAnalyser.fftSize = 256;
+        
+        const source = agentAudioContext.createMediaStreamSource(agentStream);
+        source.connect(agentAnalyser);
+        
+        // Start visualization
+        drawAgentSpectrum();
+        
+        // Update status
+        const statusElem = document.getElementById('agent-voice-status');
+        if (statusElem) statusElem.textContent = 'Active';
+        
+        console.log('[AGENT SPECTRUM] Started');
+    } catch (error) {
+        console.error('[AGENT SPECTRUM] Error:', error);
+    }
+}
+
+function stopAgentSpectrum() {
+    if (agentAnimationId) {
+        cancelAnimationFrame(agentAnimationId);
+        agentAnimationId = null;
+    }
+    
+    if (agentStream) {
+        agentStream.getTracks().forEach(track => track.stop());
+        agentStream = null;
+    }
+    
+    if (agentAudioContext) {
+        agentAudioContext.close();
+        agentAudioContext = null;
+    }
+    
+    agentAnalyser = null;
+    
+    // Clear canvas
+    const canvas = document.getElementById('agent-spectrum-canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Update status
+    const statusElem = document.getElementById('agent-voice-status');
+    if (statusElem) statusElem.textContent = 'Inactive';
+    
+    console.log('[AGENT SPECTRUM] Stopped');
+}
+
+function drawAgentSpectrum() {
+    if (!agentAnalyser) return;
+    
+    const canvas = document.getElementById('agent-spectrum-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const bufferLength = agentAnalyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    agentAnalyser.getByteFrequencyData(dataArray);
+    
+    // Clear canvas
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw bars
+    const barWidth = canvas.width / bufferLength * 2.5;
+    let x = 0;
+    
+    for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * canvas.height;
+        
+        // Purple gradient for agent
+        const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
+        gradient.addColorStop(0, '#8b5cf6');
+        gradient.addColorStop(1, '#a78bfa');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        
+        x += barWidth + 1;
+    }
+    
+    // Continue animation
+    agentAnimationId = requestAnimationFrame(drawAgentSpectrum);
 }
 
 // Initialize on page load

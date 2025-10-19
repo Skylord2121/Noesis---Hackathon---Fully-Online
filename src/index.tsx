@@ -49,10 +49,16 @@ app.get('/api/ollama/tags', async (c) => {
 // Load company knowledge
 import companyKnowledge from '../config/company-knowledge.json'
 
-// Cloudflare AI Analysis Endpoint
+// Ollama AI Analysis Endpoint (ONLY SOURCE - No fallback)
 app.post('/api/ai-analysis', async (c) => {
   try {
     const { text, conversationHistory, voiceMetrics } = await c.req.json()
+    
+    console.log('=================================================')
+    console.log('[AI ANALYSIS] NEW REQUEST')
+    console.log('[AI ANALYSIS] Customer text:', text)
+    console.log('[AI ANALYSIS] Voice metrics:', voiceMetrics ? 'Present' : 'None')
+    console.log('=================================================')
     
     if (!text) {
       return c.json({ success: false, error: 'Text is required' }, 400)
@@ -99,27 +105,31 @@ ${conversationContext}
 ${voiceContext}
 LATEST CUSTOMER: "${text}"
 
-TASK: Provide SHORT, actionable coaching using COMPANY KNOWLEDGE and VOICE ANALYSIS above. Keep suggestions brief and punchy.
+CRITICAL RULES FOR SENTIMENT:
+1. READ THE WORDS: If customer SAYS "I'm happy" or "I'm frustrated", TRUST their words
+2. Sentiment scale:
+   - "happy", "great", "wonderful", "thank you" = 0.7-1.0 (Happy)
+   - "okay", "fine", "alright", neutral tone = 0.5-0.7 (Neutral)
+   - "frustrated", "upset", "angry", "disappointed" = 0.0-0.4 (Upset/Frustrated)
+3. Voice metrics are HINTS, not absolute truth
+4. Customer's STATED emotion overrides voice analysis
 
-CRITICAL RULES:
-1. CUSTOMER NAME: MUST extract name from phrases like:
-   - "My name is Sarah" → "Sarah"
-   - "I'm John Smith" → "John Smith"  
-   - "This is Mike" → "Mike"
-   - "Sarah speaking" → "Sarah"
-   If no name mentioned, return null. If name found, MUST include in response.
-2. ISSUE: Be specific (Password Reset, Billing Dispute, Refund, Shipping Delay, Account Locked, General Inquiry)
-3. COACHING: 
-   - Use COMPANY KNOWLEDGE BASE to reference specific policies/procedures
-   - Keep it SHORT unless complex protocol needed (1-2 sentences max)
-   - ONLY give detailed steps if technical issue requires it
-   - Cite specific policy/procedure when relevant (e.g., "Per refund policy...")
-   - Use RECOMMENDED PHRASES, avoid FORBIDDEN PHRASES
+COACHING RULES:
+1. ULTRA-SHORT messages (3-5 words max)
+2. Quick glanceable nudges, not paragraphs
+3. Use action verbs: "Ask", "Offer", "Acknowledge", "Check"
+4. Agent should instantly know what to do
 
-GOOD SHORT COACHING EXAMPLES:
-"Per refund policy: Full refund available within 30 days. Ask for purchase date."
-"Follow password reset procedure: Verify email and last 4 digits of phone."
-"Use greeting script for upset customers. Acknowledge frustration first."
+GOOD COACHING EXAMPLES:
+{"type": "empathy", "title": "Match energy", "message": "Mirror happy tone"}
+{"type": "action", "title": "Verify account", "message": "Ask email + DOB"}
+{"type": "knowledge", "title": "Refund ready", "message": "30-day full refund"}
+
+NAME EXTRACTION:
+- "My name is Sarah" → "Sarah"
+- "I'm John Smith" → "John Smith"  
+- "This is Mike" → "Mike"
+- If no name mentioned, return null
 
 Respond ONLY with valid JSON (no markdown, no explanation):
 {
@@ -134,390 +144,124 @@ Respond ONLY with valid JSON (no markdown, no explanation):
   "coaching": [
     {
       "type": "empathy",
-      "title": "Greet Warmly",
-      "message": "Welcome customer and thank them for reaching out"
+      "title": "2-4 words",
+      "message": "3-5 words max"
     }
   ]
 }`
 
-    // Try multiple AI sources in order: Ollama -> Cloudflare -> Fallback
-    let analysis
-    let aiSource = 'fallback'
+    // ONLY USE OLLAMA - No fallback
+    // Use environment variable for Ollama URL (supports ngrok tunnels)
+    const ollamaUrl = c.env?.OLLAMA_URL || 'http://localhost:11434'
+    console.log('[OLLAMA] Calling Ollama at', ollamaUrl + '/api/generate')
+    console.log('[OLLAMA] Model: qwen2.5:3b')
     
-    // Try Ollama first (local)
-    try {
-      console.log('Attempting Ollama AI...')
-      const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'qwen2.5:3b',
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: 0.3,
-            num_predict: 500
-          }
-        }),
-        signal: AbortSignal.timeout(10000)
-      })
-      
-      if (ollamaResponse.ok) {
-        const ollamaData = await ollamaResponse.json()
-        const responseText = ollamaData.response.trim()
-        console.log('Ollama response:', responseText.substring(0, 200))
-        
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          analysis = JSON.parse(jsonMatch[0])
-          aiSource = 'ollama'
-          console.log('✓ Using Ollama AI')
-        } else {
-          throw new Error('No JSON in Ollama response')
+    const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'qwen2.5:3b',
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: 0.3,
+          num_predict: 500
         }
-      } else {
-        throw new Error('Ollama not responding')
-      }
-    } catch (ollamaError) {
-      console.log('Ollama failed:', ollamaError.message)
-      
-      // Try Cloudflare AI
-      try {
-        const ai = c.env?.AI
-        
-        if (ai) {
-          console.log('Attempting Cloudflare AI...')
-          const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
-            messages: [
-              { role: 'system', content: 'You are a helpful assistant that responds only in valid JSON.' },
-              { role: 'user', content: prompt }
-            ],
-            temperature: 0.2,
-            max_tokens: 500
-          })
-
-          const responseText = response.response || JSON.stringify(response)
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-          
-          if (jsonMatch) {
-            analysis = JSON.parse(jsonMatch[0])
-            aiSource = 'cloudflare'
-            console.log('✓ Using Cloudflare AI')
-          } else {
-            throw new Error('No JSON found in response')
-          }
-        } else {
-          throw new Error('Cloudflare AI not available')
-        }
-      } catch (cloudflareError) {
-        console.log('Cloudflare AI failed:', cloudflareError.message)
-        console.log('Using smart fallback AI')
-      
-      // Extract customer name using regex
-      const nameMatch = text.match(/(?:my name is|i'm|this is|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ||
-                       text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+speaking/i)
-      const customerName = nameMatch ? nameMatch[1] : null
-      
-      // Detect issue type from keywords
-      let issue = 'General Inquiry'
-      const lowerText = text.toLowerCase()
-      if (lowerText.includes('refund') || lowerText.includes('money back')) issue = 'Refund Request'
-      else if (lowerText.includes('password') || lowerText.includes('login') || lowerText.includes('account')) issue = 'Account Access'
-      else if (lowerText.includes('shipping') || lowerText.includes('delivery') || lowerText.includes('package')) issue = 'Shipping Issue'
-      else if (lowerText.includes('billing') || lowerText.includes('charge') || lowerText.includes('payment')) issue = 'Billing Inquiry'
-      else if (lowerText.includes('product') || lowerText.includes('item') || lowerText.includes('order')) issue = 'Order Inquiry'
-      
-      // Analyze sentiment from voice metrics and keywords
-      // START NEUTRAL - scores should reflect actual performance
-      let sentiment = 0.5  // Neutral starting point
-      let stress = 'Medium'
-      let empathy = 5.0    // Neutral empathy (5/10 scale)
-      let quality = 5.0    // Neutral quality (5/10 scale)
-      let predictedCSAT = 5.0  // Neutral CSAT (5/10 scale)
-      
-      if (voiceMetrics) {
-        // ULTRA SENSITIVE voice analysis - catches subtle frustration
-        // Lowered all thresholds by 10-15 points for better detection
-        
-        // Very high stress indicators (shouting/very upset)
-        // LOWERED: 70→60, 250→230
-        if (voiceMetrics.volume > 60 || voiceMetrics.pitch > 230) {
-          sentiment = 0.1
-          stress = 'High'
-          empathy = 2.5
-          quality = 3.5
-          predictedCSAT = 3.0
-        }
-        // High stress (loud + high pitch + fast speech)
-        // LOWERED: 55→45, 220→200
-        else if (voiceMetrics.volume > 45 && voiceMetrics.pitch > 200) {
-          sentiment = 0.2
-          stress = 'High'
-          empathy = 3.0
-          quality = 4.0
-          predictedCSAT = 3.5
-        }
-        // Elevated stress (moderately loud OR high pitch)
-        // LOWERED: 50→40, 200→180
-        else if (voiceMetrics.volume > 40 || voiceMetrics.pitch > 180) {
-          sentiment = 0.35
-          stress = 'Medium-High'
-          empathy = 4.0
-          quality = 4.5
-          predictedCSAT = 4.5
-        }
-        // Slightly elevated (any sign of stress)
-        // LOWERED: 45→35, 180→160, 4→3.5
-        else if (voiceMetrics.volume > 35 || voiceMetrics.pitch > 160 || voiceMetrics.speechRate > 3.5) {
-          sentiment = 0.45
-          stress = 'Medium'
-          empathy = 4.5
-          quality = 5.0
-          predictedCSAT = 5.0
-        }
-        // Very calm (low volume + low energy)
-        else if (voiceMetrics.volume < 30 && voiceMetrics.energy < 30) {
-          sentiment = 0.7
-          stress = 'Low'
-          empathy = 6.5
-          quality = 6.5
-          predictedCSAT = 7.0
-        }
-        // Calm (low volume OR low energy)
-        else if (voiceMetrics.volume < 40 || voiceMetrics.energy < 40) {
-          sentiment = 0.6
-          stress = 'Low-Medium'
-          empathy = 5.5
-          quality = 5.5
-          predictedCSAT = 6.0
-        }
-      }
-      
-      // Enhanced sentiment detection - be VERY sensitive to negative language
-      
-      // Strong negative indicators (severe dissatisfaction)
-      const strongNegative = [
-        'don\'t trust', 'don\'t believe', 'not doing a good job', 'doing a terrible job',
-        'horrible', 'worst', 'terrible', 'awful', 'pathetic', 'useless',
-        'unacceptable', 'ridiculous', 'disgrace', 'incompetent', 'nightmare',
-        'scam', 'fraud', 'lie', 'lying', 'liar',
-        'waste of time', 'waste of money', 'rip off', 'ripoff',
-        'never again', 'disgusted', 'appalled', 'outraged',
-        'sick of', 'fed up', 'had enough', 'enough of this', 'can\'t believe',
-        'ridiculous', 'joke', 'absurd', 'insane', 'crazy',
-        'worst experience', 'horrible service', 'terrible service'
-      ]
-      
-      // Moderate negative indicators (frustration/disappointment)
-      const moderateNegative = [
-        'angry', 'upset', 'frustrated', 'disappointed', 'annoyed', 'irritated',
-        'unhappy', 'dissatisfied', 'unsatisfied', 'not happy', 'not satisfied',
-        'problem', 'issue', 'broken', 'doesn\'t work', 'not working', 'failed',
-        'wrong', 'mistake', 'error', 'bad', 'poor', 'unfair',
-        'waited too long', 'still waiting', 'no response', 'no help', 'not helpful',
-        'not good', 'not right', 'not okay', 'not acceptable', 'not cool',
-        'annoying', 'bothered', 'troubled', 'concerned', 'worried',
-        'difficulty', 'struggling', 'can\'t', 'won\'t', 'doesn\'t',
-        'never', 'always', 'every time', 'again', 'still',
-        'why', 'how come', 'what\'s going on', 'what\'s the deal'
-      ]
-      
-      // Distrust/doubt indicators (lack of confidence)
-      const distrustIndicators = [
-        'honestly', 'frankly', 'to be honest', 'let\'s be real', 'seriously',
-        'doubt', 'questionable', 'suspicious', 'concerned', 'worried',
-        'not sure', 'don\'t think', 'don\'t know', 'hard to believe',
-        'yeah right', 'sure', 'whatever', 'fine', 'okay fine',
-        'i guess', 'suppose', 'allegedly', 'supposedly',
-        'skeptical', 'doubtful', 'uncertain', 'unconvinced'
-      ]
-      
-      // Genuine positive indicators (must show actual satisfaction/praise)
-      const genuinePositive = [
-        'great job', 'excellent service', 'amazing', 'wonderful experience',
-        'very happy', 'very satisfied', 'so helpful', 'really appreciate',
-        'love it', 'fantastic', 'awesome', 'brilliant', 'outstanding',
-        'impressed', 'superb', 'exceeded', 'better than expected',
-        'great customer service', 'been a great', 'great experience',
-        'really good', 'very good', 'so glad', 'thank you so much',
-        'appreciate it', 'appreciate your', 'you\'re amazing', 'you\'re great',
-        'helpful', 'really helped', 'you helped', 'perfect', 'exactly what',
-        'couldn\'t be better', 'very pleased', 'much better', 'way better'
-      ]
-      
-      // Transactional/polite phrases (NOT indicators of happiness)
-      const transactionalPolite = [
-        'okay thank', 'ok thank', 'sure thank', 'alright thank',
-        'my order number', 'here is', 'it is', 'that is',
-        'yes thank', 'yeah thank'
-      ]
-      
-      // Check for strong negative sentiment
-      let negativeScore = 0
-      let hasDistrust = false
-      let isTransactional = false
-      
-      // Check if this is just transactional politeness
-      if (transactionalPolite.some(phrase => lowerText.includes(phrase))) {
-        isTransactional = true
-        // Keep neutral - customer is just being polite, not expressing satisfaction
-      }
-      
-      if (strongNegative.some(phrase => lowerText.includes(phrase))) {
-        negativeScore = 3  // Severe
-        sentiment = 0.1
-        stress = 'High'
-        empathy = 2.0
-        quality = 2.5
-        predictedCSAT = 2.0
-      } else if (moderateNegative.some(phrase => lowerText.includes(phrase))) {
-        negativeScore = 2  // Moderate
-        sentiment = Math.max(0.25, sentiment - 0.3)
-        stress = 'High'
-        empathy = Math.max(3.0, empathy - 2.5)
-        quality = Math.max(3.5, quality - 2.0)
-        predictedCSAT = Math.max(3.5, predictedCSAT - 2.5)
-      }
-      
-      // Check for distrust language (often precedes complaints)
-      if (distrustIndicators.some(phrase => lowerText.includes(phrase))) {
-        hasDistrust = true
-        // If there's distrust language, assume negative unless proven otherwise
-        if (negativeScore === 0) {
-          negativeScore = 1
-          sentiment = Math.max(0.3, sentiment - 0.25)
-          stress = 'Medium-High'
-          empathy = Math.max(3.5, empathy - 1.5)
-          quality = Math.max(4.0, quality - 1.5)
-          predictedCSAT = Math.max(4.0, predictedCSAT - 1.5)
-        }
-      }
-      
-      // Check for GENUINE positive sentiment (only if not negative or transactional)
-      if (negativeScore === 0 && !isTransactional && genuinePositive.some(phrase => lowerText.includes(phrase))) {
-        sentiment = Math.min(0.85, sentiment + 0.25)
-        stress = 'Low'
-        empathy = Math.min(9.0, empathy + 2.5)
-        quality = Math.min(9.0, quality + 2.0)
-        predictedCSAT = Math.min(9.0, predictedCSAT + 2.5)
-      }
-      
-      // If transactional, stay neutral (don't boost scores)
-      if (isTransactional && negativeScore === 0) {
-        // Keep default neutral scores - customer is just being polite
-        sentiment = 0.5
-        stress = 'Medium'
-        empathy = 5.0
-        quality = 5.0
-        predictedCSAT = 5.0
-      }
-      
-      // Check for verification phrase from agent
-      const verificationDetected = lowerText.includes('you\'ve been verified') || 
-                                   lowerText.includes('you have been verified') ||
-                                   lowerText.includes('you are verified') ||
-                                   lowerText.includes('you\'re verified')
-      
-      // Generate contextual coaching
-      const coaching = []
-      
-      // Verification notification
-      if (verificationDetected) {
-        coaching.push({
-          type: 'verification',
-          title: '✓ Customer Verified',
-          message: 'Customer verification completed. Update customer status to "Verified".',
-          action: 'verify-customer'
-        })
-      }
-      
-      // Empathy coaching based on stress and sentiment
-      if (negativeScore === 3) {
-        // Severe negative sentiment
-        coaching.push({
-          type: 'critical',
-          title: '⚠️ CRITICAL: Customer Very Upset',
-          message: 'Customer shows distrust and severe dissatisfaction. IMMEDIATE ACTION: 1) Acknowledge their frustration, 2) Take ownership, 3) Escalate if needed.'
-        })
-      } else if (negativeScore === 2 || stress === 'High') {
-        coaching.push({
-          type: 'empathy',
-          title: 'De-escalate First',
-          message: 'Customer is frustrated/stressed. Start with: "I understand how frustrating this must be. Let me help you right away."'
-        })
-      } else if (hasDistrust) {
-        coaching.push({
-          type: 'trust',
-          title: 'Rebuild Trust',
-          message: 'Customer expressing doubt/distrust. Be transparent, specific, and follow through on promises. Avoid vague assurances.'
-        })
-      } else {
-        coaching.push({
-          type: 'empathy',
-          title: 'Maintain Rapport',
-          message: 'Good tone. Keep conversation professional and focused on resolution.'
-        })
-      }
-      
-      // Issue-specific coaching
-      if (issue === 'Refund Request') {
-        coaching.push({
-          type: 'action',
-          title: 'Check Refund Policy',
-          message: 'Per company policy: Full refund within 30 days. Ask for order date and verify eligibility.'
-        })
-      } else if (issue === 'Account Access') {
-        coaching.push({
-          type: 'action',
-          title: 'Password Reset Steps',
-          message: 'Follow protocol: Verify email address, ask for last 4 digits of phone, then send reset link.'
-        })
-      } else if (issue === 'Shipping Issue') {
-        coaching.push({
-          type: 'knowledge',
-          title: 'Check Tracking',
-          message: 'Look up order, check tracking status. Standard shipping: 5-7 days. Offer expedited if delayed.'
-        })
-      }
-      
-        analysis = {
-          sentiment,
-          empathy,
-          quality,
-          stress,
-          clarity: voiceMetrics && voiceMetrics.energy > 50 ? 'Good' : 'Fair',
-          predictedCSAT,
-          customerName,
-          issue,
-          coaching
-        }
-      }
+      }),
+      signal: AbortSignal.timeout(30000) // 30 second timeout
+    })
+    
+    if (!ollamaResponse.ok) {
+      console.error('[OLLAMA] HTTP Error:', ollamaResponse.status, ollamaResponse.statusText)
+      throw new Error(`Ollama returned ${ollamaResponse.status}: ${ollamaResponse.statusText}`)
     }
-
-    console.log(`[AI ANALYSIS] Final source: ${aiSource}`)
-    return c.json({ success: true, analysis, aiSource })
     
-  } catch (error) {
-    console.error('AI Analysis Error:', error)
+    const ollamaData = await ollamaResponse.json()
+    const responseText = ollamaData.response.trim()
+    
+    console.log('[OLLAMA] Raw response length:', responseText.length)
+    console.log('[OLLAMA] Raw response preview:', responseText.substring(0, 300))
+    
+    // Extract JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error('[OLLAMA] No JSON found in response')
+      throw new Error('Ollama did not return valid JSON')
+    }
+    
+    const analysis = JSON.parse(jsonMatch[0])
+    console.log('[OLLAMA] ✓ Successfully parsed JSON')
+    console.log('[OLLAMA] Analysis:', JSON.stringify(analysis, null, 2))
+
+    return c.json({ success: true, analysis, aiSource: 'ollama' })
+    
+  } catch (ollamaError) {
+    console.error('=================================================')
+    console.error('[OLLAMA] ❌ CRITICAL ERROR - Ollama unavailable')
+    console.error('[OLLAMA] Error message:', ollamaError.message)
+    console.error('[OLLAMA] Stack:', ollamaError.stack)
+    console.error('[OLLAMA] Using emergency rule-based fallback')
+    console.error('=================================================')
+    
+    // EMERGENCY FALLBACK - Basic rule-based analysis when Ollama is down
+    // This is NOT AI - just simple keyword matching to keep system functional
+    const lowerText = text.toLowerCase()
+    
+    // Detect customer name
+    const nameMatch = text.match(/(?:my name is|i'm|this is|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i)
+    const customerName = nameMatch ? nameMatch[1] : null
+    
+    // Detect issue type
+    let issue = 'General Inquiry'
+    if (lowerText.includes('refund') || lowerText.includes('money back')) issue = 'Refund Request'
+    else if (lowerText.includes('password') || lowerText.includes('login')) issue = 'Account Access'
+    else if (lowerText.includes('order') || lowerText.includes('delivery')) issue = 'Order Issue'
+    
+    // Sentiment from keywords and voice
+    let sentiment = 0.5
+    let empathy = 5.0
+    let quality = 5.0
+    let stress = 'Medium'
+    
+    if (lowerText.includes('upset') || lowerText.includes('angry') || lowerText.includes('frustrated')) {
+      sentiment = 0.3
+      empathy = 3.5
+      quality = 4.0
+      stress = 'High'
+    } else if (voiceMetrics && voiceMetrics.volume > 60) {
+      sentiment = 0.4
+      empathy = 4.0
+      stress = 'High'
+    }
+    
+    const analysis = {
+      sentiment,
+      empathy,
+      quality,
+      stress,
+      clarity: 'Good',
+      predictedCSAT: empathy,
+      customerName,
+      issue,
+      coaching: [{
+        type: 'system',
+        title: '⚠️ Ollama Unavailable',
+        message: 'Using basic analysis. Install Ollama for AI-powered coaching.'
+      }, {
+        type: 'empathy',
+        title: stress === 'High' ? 'Customer Upset' : 'Active Listening',
+        message: stress === 'High' ? 'Show empathy and acknowledge frustration' : 'Maintain professional tone'
+      }]
+    }
+    
+    console.log('[FALLBACK] Generated basic analysis:', JSON.stringify(analysis, null, 2))
+    
     return c.json({ 
-      success: false, 
-      error: error.message,
-      analysis: {
-        sentiment: 0.5,
-        empathy: 7.0,
-        quality: 7.0,
-        stress: 'Medium',
-        clarity: 'Good',
-        predictedCSAT: 7.0,
-        customerName: null,
-        issue: 'General Inquiry',
-        coaching: [{
-          type: 'knowledge',
-          title: 'AI Unavailable',
-          message: 'Continue assisting customer. AI analysis temporarily unavailable.'
-        }]
-      }
-    }, 500)
+      success: true, 
+      analysis, 
+      aiSource: 'fallback',
+      warning: 'Ollama unavailable - using basic rule-based analysis'
+    })
   }
 })
 
@@ -776,6 +520,33 @@ app.post('/api/session/voice-metrics', async (c) => {
     })
     
     return c.json({ success: true })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Debug endpoint - list all messages in a session
+app.get('/api/session/debug', async (c) => {
+  try {
+    const sessionId = c.req.query('sessionId')
+    
+    if (!sessionId) {
+      return c.json({ success: false, error: 'Session ID required' }, 400)
+    }
+    
+    const messages = sessions.get(sessionId) || []
+    
+    return c.json({ 
+      success: true, 
+      sessionId,
+      messageCount: messages.length,
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content.substring(0, 100),
+        timestamp: m.timestamp,
+        hasVoiceMetrics: !!m.voiceMetrics
+      }))
+    })
   } catch (error) {
     return c.json({ success: false, error: error.message }, 500)
   }

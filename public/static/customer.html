@@ -366,14 +366,24 @@
 
         if (!sessionId) {
             console.error('[CUSTOMER] No session ID found in URL');
+            console.error('[CUSTOMER] Full URL:', window.location.href);
+            console.error('[CUSTOMER] Search params:', window.location.search);
+            console.error('[CUSTOMER] User agent:', navigator.userAgent);
             document.body.innerHTML = `
                 <div class="error-message">
                     <div class="error-title">Invalid Session</div>
                     <div class="error-subtitle">Please use the link provided by your support agent</div>
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 11px; text-align: left; max-width: 400px; word-break: break-all;">
+                        <strong>Debug Info:</strong><br>
+                        URL: ${window.location.href}<br>
+                        Params: ${window.location.search}<br>
+                        Mobile: ${/mobile|android|iphone|ipad/i.test(navigator.userAgent)}
+                    </div>
                 </div>
             `;
         } else {
             console.log('[CUSTOMER] Session ID valid, initializing...');
+            console.log('[CUSTOMER] Mobile device:', /mobile|android|iphone|ipad/i.test(navigator.userAgent));
         }
 
         // State
@@ -412,16 +422,20 @@
             console.log('[CUSTOMER] Speech recognition initialized');
 
             recognition.onresult = async (event) => {
-                console.log('[CUSTOMER] Speech recognition result received');
+                console.log('[CUSTOMER] 🎤 Speech recognition result received');
                 let interimTranscript = '';
                 
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
-                    console.log(`[CUSTOMER] Transcript (${event.results[i].isFinal ? 'FINAL' : 'interim'}): "${transcript}"`);
+                    const isFinal = event.results[i].isFinal;
+                    console.log(`[CUSTOMER] Transcript ${i} (${isFinal ? 'FINAL' : 'interim'}): "${transcript}"`);
                     
-                    if (event.results[i].isFinal) {
+                    if (isFinal) {
                         // Send final transcript to server
-                        console.log('[CUSTOMER] Sending FINAL transcript to server...');
+                        console.log('=================================================');
+                        console.log('[CUSTOMER] 🎯 FINAL TRANSCRIPT DETECTED!');
+                        console.log('[CUSTOMER] Will send to server:', transcript);
+                        console.log('=================================================');
                         await sendMessage('customer', transcript);
                         document.getElementById('call-subtitle').textContent = 'Listening...';
                     } else {
@@ -433,6 +447,11 @@
                 if (interimTranscript) {
                     document.getElementById('call-subtitle').textContent = interimTranscript;
                 }
+            };
+
+            recognition.onstart = () => {
+                console.log('[CUSTOMER] ✓ Speech recognition STARTED - microphone is active');
+                updateConnectionStatus(true);
             };
 
             recognition.onerror = (event) => {
@@ -631,29 +650,45 @@
             });
         }
 
-        function startRecording() {
+        async function startRecording() {
             try {
-                console.log('[CUSTOMER] Starting recording...');
+                console.log('=================================================');
+                console.log('[CUSTOMER] 🎤 STARTING RECORDING');
+                console.log('=================================================');
                 
-                // Initialize audio analysis
+                // Initialize audio analysis first (needs user gesture on mobile)
                 if (!audioContext) {
                     console.log('[CUSTOMER] Initializing audio analysis...');
-                    initAudioAnalysis();
+                    await initAudioAnalysis();
+                    console.log('[CUSTOMER] ✓ Audio analysis ready');
                 }
                 
+                // Start speech recognition
                 if (!recognitionActive) {
                     console.log('[CUSTOMER] Starting speech recognition...');
-                    recognition.start();
-                    recognitionActive = true;
-                    console.log('[CUSTOMER] Speech recognition started');
+                    try {
+                        recognition.start();
+                        recognitionActive = true;
+                        console.log('[CUSTOMER] ✓ Speech recognition started successfully');
+                    } catch (recognitionError) {
+                        console.error('[CUSTOMER] ❌ Speech recognition failed to start:', recognitionError);
+                        // If already started, that's OK - just set the flag
+                        if (recognitionError.message && recognitionError.message.includes('already started')) {
+                            console.log('[CUSTOMER] Recognition already running, continuing...');
+                            recognitionActive = true;
+                        } else {
+                            throw recognitionError;
+                        }
+                    }
                 }
+                
                 isRecording = true;
 
                 // Start call timer
                 if (!callStartTime) {
                     callStartTime = Date.now();
                     timerInterval = setInterval(updateTimer, 1000);
-                    console.log('[CUSTOMER] Call timer started');
+                    console.log('[CUSTOMER] ✓ Call timer started');
                 }
 
                 // Update UI
@@ -667,9 +702,17 @@
                 bars.forEach(bar => bar.classList.add('active'));
 
                 updateConnectionStatus(true);
-                console.log('[CUSTOMER] Recording UI updated, ready for speech');
+                console.log('[CUSTOMER] ✓ Recording started - speak now!');
+                console.log('=================================================');
             } catch (e) {
-                console.error('[CUSTOMER] Error starting recording:', e);
+                console.error('=================================================');
+                console.error('[CUSTOMER] ❌ CRITICAL ERROR starting recording');
+                console.error('[CUSTOMER] Error:', e);
+                console.error('[CUSTOMER] Error message:', e.message);
+                console.error('[CUSTOMER] Stack:', e.stack);
+                console.error('=================================================');
+                updateConnectionStatus(false);
+                alert('Failed to start microphone: ' + e.message + '\n\nPlease refresh the page and try again.');
             }
         }
 
@@ -751,7 +794,12 @@
         
         async function sendMessage(role, content) {
             try {
-                console.log(`[CUSTOMER] Sending message - Role: ${role}, Content: "${content.substring(0, 50)}..."`);
+                console.log('=================================================');
+                console.log('[CUSTOMER] 📤 SENDING MESSAGE TO SERVER');
+                console.log('[CUSTOMER] Session ID:', sessionId);
+                console.log('[CUSTOMER] Role:', role);
+                console.log('[CUSTOMER] Content:', content);
+                console.log('=================================================');
                 
                 // Include voice metrics with customer messages
                 const messageData = {
@@ -771,10 +819,11 @@
                         timestamp: Date.now()
                     };
                     
-                    console.log('[CUSTOMER] Voice metrics:', voiceMetrics);
+                    console.log('[CUSTOMER] Including voice metrics:', voiceMetrics);
                 }
                 
-                console.log('[CUSTOMER] Sending to API:', messageData);
+                console.log('[CUSTOMER] Full message data:', JSON.stringify(messageData, null, 2));
+                console.log('[CUSTOMER] Calling POST /api/session/message...');
                 
                 const response = await fetch('/api/session/message', {
                     method: 'POST',
@@ -784,17 +833,26 @@
                     body: JSON.stringify(messageData)
                 });
 
+                console.log('[CUSTOMER] Response status:', response.status, response.statusText);
+
                 if (!response.ok) {
-                    console.error('[CUSTOMER] API Error:', response.status, response.statusText);
+                    console.error('[CUSTOMER] ❌ API Error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('[CUSTOMER] Error response:', errorText);
                     throw new Error('Failed to send message');
                 }
 
                 const result = await response.json();
-                console.log('[CUSTOMER] Message sent successfully:', result);
+                console.log('[CUSTOMER] ✓ Message sent successfully!');
+                console.log('[CUSTOMER] Server response:', result);
 
                 updateConnectionStatus(true);
             } catch (error) {
-                console.error('[CUSTOMER] Error sending message:', error);
+                console.error('=================================================');
+                console.error('[CUSTOMER] ❌ CRITICAL ERROR sending message');
+                console.error('[CUSTOMER] Error:', error);
+                console.error('[CUSTOMER] Stack:', error.stack);
+                console.error('=================================================');
                 updateConnectionStatus(false);
             }
         }

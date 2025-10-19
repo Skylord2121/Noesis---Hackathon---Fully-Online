@@ -34,18 +34,7 @@
         }
 
         /* Audio Spectrum Bars */
-        .spectrum-bar {
-            width: 4px;
-            background: linear-gradient(to top, #3b82f6, #06b6d4);
-            border-radius: 2px;
-            animation: wave 1.5s ease-in-out infinite;
-            transform-origin: bottom;
-        }
-        
-        @keyframes wave {
-            0%, 100% { transform: scaleY(0.3); }
-            50% { transform: scaleY(1); }
-        }
+
 
         @keyframes pulse-glow {
             0%, 100% { opacity: 1; }
@@ -734,11 +723,6 @@
                 height: 32px !important;
             }
 
-            /* Compact spectrum bars on mobile */
-            .spectrum-bar {
-                width: 3px !important;
-            }
-
             /* Bottom controls sticky */
             .mobile-controls {
                 position: fixed;
@@ -878,44 +862,16 @@
                 </div>
             </div>
 
-            <!-- Customer Voice -->
+            <!-- Agent Voice Spectrum -->
             <div class="glass-panel p-3">
-                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Customer Voice</h3>
-                <div class="bg-slate-800/30 rounded mb-3 p-3 flex items-end justify-between gap-1" style="height: 60px;">
-                    <div class="spectrum-bar" style="height: 30%; animation-delay: 0s;"></div>
-                    <div class="spectrum-bar" style="height: 60%; animation-delay: 0.1s;"></div>
-                    <div class="spectrum-bar" style="height: 45%; animation-delay: 0.2s;"></div>
-                    <div class="spectrum-bar" style="height: 80%; animation-delay: 0.3s;"></div>
-                    <div class="spectrum-bar" style="height: 55%; animation-delay: 0.4s;"></div>
-                    <div class="spectrum-bar" style="height: 70%; animation-delay: 0.5s;"></div>
-                    <div class="spectrum-bar" style="height: 40%; animation-delay: 0.6s;"></div>
-                    <div class="spectrum-bar" style="height: 85%; animation-delay: 0.7s;"></div>
-                    <div class="spectrum-bar" style="height: 50%; animation-delay: 0.8s;"></div>
-                    <div class="spectrum-bar" style="height: 75%; animation-delay: 0.9s;"></div>
-                    <div class="spectrum-bar" style="height: 45%; animation-delay: 1s;"></div>
-                    <div class="spectrum-bar" style="height: 90%; animation-delay: 1.1s;"></div>
-                    <div class="spectrum-bar" style="height: 35%; animation-delay: 1.2s;"></div>
-                    <div class="spectrum-bar" style="height: 65%; animation-delay: 1.3s;"></div>
-                    <div class="spectrum-bar" style="height: 50%; animation-delay: 1.4s;"></div>
-                    <div class="spectrum-bar" style="height: 75%; animation-delay: 0.15s;"></div>
-                    <div class="spectrum-bar" style="height: 60%; animation-delay: 0.25s;"></div>
-                    <div class="spectrum-bar" style="height: 80%; animation-delay: 0.35s;"></div>
-                    <div class="spectrum-bar" style="height: 45%; animation-delay: 0.45s;"></div>
-                    <div class="spectrum-bar" style="height: 70%; animation-delay: 0.55s;"></div>
-                    <div class="spectrum-bar" style="height: 55%; animation-delay: 0.65s;"></div>
-                    <div class="spectrum-bar" style="height: 85%; animation-delay: 0.75s;"></div>
-                    <div class="spectrum-bar" style="height: 40%; animation-delay: 0.85s;"></div>
-                    <div class="spectrum-bar" style="height: 65%; animation-delay: 0.95s;"></div>
-                    <div class="spectrum-bar" style="height: 50%; animation-delay: 1.05s;"></div>
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Agent Voice</h3>
+                <div class="bg-slate-800/30 rounded mb-3 p-3 flex items-end justify-center gap-2" style="height: 80px;" id="agent-spectrum-container">
+                    <canvas id="agent-spectrum-canvas" width="300" height="80"></canvas>
                 </div>
                 <div class="space-y-2 text-xs">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-400">Stress</span>
-                        <span id="stress-label" class="font-semibold text-gray-500">N/A</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">Clarity</span>
-                        <span id="clarity-label" class="font-semibold text-gray-500">N/A</span>
+                        <span class="text-gray-400">Status</span>
+                        <span id="agent-voice-status" class="font-semibold text-gray-500">Inactive</span>
                     </div>
                 </div>
             </div>
@@ -1005,8 +961,8 @@
                 </button>
             </div>
 
-            <!-- Balanced 3-Column Grid Layout - Blue Theme -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Balanced 2-Column Grid Layout - Blue Theme -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <!-- Ollama AI Section (Local) -->
                 <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-blue-300 mb-3 flex items-center">
@@ -1049,43 +1005,6 @@
                                 <i class="fas fa-info-circle text-blue-400 text-xs mt-0.5"></i>
                                 <div class="text-xs text-gray-400">
                                     <strong class="text-gray-300">Setup:</strong> Run <span class="settings-code-highlight bg-slate-700/50 px-1.5 py-0.5 rounded text-[10px] text-blue-300">ollama serve</span> and install <span class="settings-code-highlight bg-slate-700/50 px-1.5 py-0.5 rounded text-[10px] text-blue-300">qwen2.5:3b</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Cloudflare AI Section -->
-                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                    <h3 class="text-sm font-semibold text-blue-300 mb-3 flex items-center">
-                        <i class="fas fa-cloud mr-2"></i>
-                        Cloudflare AI
-                    </h3>
-                    
-                    <div class="space-y-3">
-                        <div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <i class="fas fa-check-circle text-green-400 text-sm"></i>
-                                <span class="text-xs font-semibold text-gray-300">Always Available</span>
-                            </div>
-                            <p class="text-xs text-gray-400">
-                                Cloud AI for reliable fallback when Ollama unavailable.
-                            </p>
-                        </div>
-                        
-                        <div class="bg-slate-800/40 border border-slate-700/30 rounded p-2">
-                            <div class="text-xs text-gray-400">
-                                <strong class="text-gray-300">Model:</strong> Llama 3 8B<br/>
-                                <strong class="text-gray-300">Status:</strong> <span class="text-green-400">Active</span><br/>
-                                <strong class="text-gray-300">Latency:</strong> ~200ms
-                            </div>
-                        </div>
-                        
-                        <div class="bg-slate-700/30 border border-slate-600/30 rounded p-2">
-                            <div class="flex items-start gap-2">
-                                <i class="fas fa-info-circle text-blue-400 text-xs mt-0.5"></i>
-                                <div class="text-xs text-gray-400">
-                                    Fallback option when Ollama is unavailable. No setup required.
                                 </div>
                             </div>
                         </div>
@@ -1146,37 +1065,10 @@
                     </div>
                 </div>
             </div>
-            <!-- End of 3-column grid -->
+            <!-- End of 2-column grid -->
             
             <!-- Full-width row below -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                <!-- AI Fallback Chain -->
-                <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-4">
-                    <h3 class="text-sm font-semibold text-gray-200 mb-3 flex items-center">
-                        <i class="fas fa-layer-group mr-2 text-blue-400"></i>
-                        AI Fallback Chain
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        <div class="flex-1 bg-blue-500/20 border border-blue-500/30 rounded p-2 text-center">
-                            <div class="text-xs font-semibold text-blue-300">1. Ollama</div>
-                            <div class="text-[10px] text-gray-400">Local, Fast</div>
-                        </div>
-                        <i class="fas fa-arrow-right text-gray-500"></i>
-                        <div class="flex-1 bg-blue-500/15 border border-blue-500/25 rounded p-2 text-center">
-                            <div class="text-xs font-semibold text-blue-300">2. Cloudflare</div>
-                            <div class="text-[10px] text-gray-400">Cloud, Reliable</div>
-                        </div>
-                        <i class="fas fa-arrow-right text-gray-500"></i>
-                        <div class="flex-1 bg-blue-500/10 border border-blue-500/20 rounded p-2 text-center">
-                            <div class="text-xs font-semibold text-blue-300">3. Rules</div>
-                            <div class="text-[10px] text-gray-400">Fallback</div>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">
-                        System automatically tries each AI in order until one succeeds.
-                    </p>
-                </div>
-
                 <!-- System Features -->
                 <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-gray-200 mb-3 flex items-center">
@@ -1194,7 +1086,7 @@
                             <i class="fas fa-chart-line text-blue-400"></i>Live metrics
                         </div>
                         <div class="text-xs text-gray-400 flex items-center gap-2">
-                            <img src="https://storage.googleapis.com/msgsndr/YcXvoyr2aA0gvYPm9D2Z/media/68f476b76a7dfad9d3038645.png" class="w-3.5 h-3.5 opacity-80" alt="Voice analysis" />Voice analysis
+                            <i class="fas fa-waveform-lines text-blue-400"></i>Voice analysis
                         </div>
                         <div class="text-xs text-gray-400 flex items-center gap-2">
                             <i class="fas fa-book text-blue-400"></i>Knowledge base

@@ -13,9 +13,12 @@
       "preview_id": "placeholder"
     }
   ],
-  "ai": {
-    "binding": "AI"
+  // Environment variables - loaded from .dev.vars file
+  // For production, set OLLAMA_URL via: wrangler secret put OLLAMA_URL
+  "vars": {
+    "OLLAMA_URL": "http://localhost:11434"
   }
+  // Additional vars examples:
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },
