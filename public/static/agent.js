@@ -709,8 +709,18 @@ function processAIAnalysis(analysis) {
         updateCustomerIssue(analysis.issue);
     }
     
-    // Generate coaching
+    // Generate coaching and track topics
     if (analysis.coaching && analysis.coaching.length > 0) {
+        // Track coaching topics to avoid repetition
+        const newTopic = analysis.coaching[0].title;
+        if (newTopic && !previousCoachingTopics.includes(newTopic)) {
+            previousCoachingTopics.push(newTopic);
+            // Keep only last 5 topics to avoid prompt bloat
+            if (previousCoachingTopics.length > 5) {
+                previousCoachingTopics.shift();
+            }
+        }
+        console.log('[AI] 📚 Coaching history:', previousCoachingTopics);
         updateCoaching(analysis.coaching);
     }
 }
@@ -747,119 +757,78 @@ async function getConversationAnalysis() {
             keywordHint = `\n⚠️ NEGATIVE KEYWORDS DETECTED: ${foundNegatives.join(', ')}\n⚠️ EMOTION SCORE MUST BE 2-4 (NOT 7!)`;
         }
         
-        const prompt = `You are analyzing a customer service conversation. IMPORTANT: Base scores ONLY on actual words used.${keywordHint}
+        // Build coaching context to avoid repetition and match conversation stage
+        const coachingHistory = previousCoachingTopics.length > 0 
+            ? `\nPREVIOUS COACHING: ${previousCoachingTopics.join(', ')} - DO NOT REPEAT!`
+            : '';
+        
+        // Determine coaching focus based on emotion and stage
+        let coachingFocus = '';
+        if (foundSevere.length > 0 || foundNegatives.length > 0) {
+            coachingFocus = '\nFOCUS: Conflict resolution - de-escalate, validate frustration';
+        } else if (conversationTurnCount <= 2) {
+            coachingFocus = '\nFOCUS: Opening - build rapport, verify identity, gather info';
+        } else if (conversationTurnCount >= 5 && (lastCustomer?.content.toLowerCase().includes('thank') || lastCustomer?.content.toLowerCase().includes('appreciate'))) {
+            coachingFocus = '\nFOCUS: Praise agent - positive reinforcement for excellent handling';
+        } else {
+            coachingFocus = '\nFOCUS: Policy guidance - provide solution, follow procedures';
+        }
+        
+        const prompt = `Analyze customer service conversation. Return JSON only.${keywordHint}${coachingHistory}${coachingFocus}
 
-CONVERSATION:
+CONVERSATION (recent):
 ${conversationContext}
 
-LAST CUSTOMER MESSAGE: "${lastCustomer ? lastCustomer.content : 'None'}"
-AGENT HAS SPOKEN: ${lastAgent ? 'YES' : 'NO'}
+SCORING RULES:
+- Emotion/Experience: ONLY from customer words
+- Response Quality: Agent performance (null if agent hasn't spoken: ${lastAgent ? 'NO' : 'YES'})
 
-=== CRITICAL SCORING INSTRUCTIONS ===
-🚨 YOU MUST FOLLOW THESE RULES EXACTLY - DO NOT DEVIATE! 🚨
+EMOTION (1-10):
+1-2: Severe (miserable, hate, furious)
+2-4: Negative (frustrated, upset)
+5-6: Neutral (help, need)
+7-10: Positive (thanks, appreciate)
 
-1️⃣ EMOTION SCORE (1-10) - SCAN FOR THESE EXACT WORDS:
+RESPONSE QUALITY (1-10 or null):
+1-3: No empathy
+4-6: Some acknowledgment
+7-8: Direct empathy
+9-10: Perfect empathy + action
 
-🔴 SCORE 1-2 (SEVERE NEGATIVE) - Customer uses these words:
-"miserable", "hate", "furious", "worst", "awful", "horrible", "angry", "upset"
-EXAMPLE: "I'm a miserable customer" → SCORE = 1 or 2 (NEVER 7!)
+EXPERIENCE (1-10):
+1-3: Escalating
+4-6: Waiting
+7-8: Progress
+9-10: Resolved
 
-🟠 SCORE 2-4 (NEGATIVE) - Customer uses these words:
-"frustrated", "ridiculous", "unacceptable", "terrible", "disappointed", "annoyed", "irritated", "mad"
-EXAMPLE: "I'm frustrated" → SCORE = 2 or 3 (NEVER 7!)
+Extract:
+- customerName (if mentioned)
+- issue (1-2 Title Case words: "Package Return")
 
-🟡 SCORE 5-6 (NEUTRAL) - No emotion words, just facts:
-"help", "need", "want", "can you", "looking for", "wondering", "basically wanting"
-EXAMPLE: "I want to return" → SCORE = 5 or 6
+Coaching (1 item) - MUST VARY by stage:
+Turn 1-2: Opening (verify, rapport, gather)
+Turn 3-4: Solution (offer fix, timeline)
+Turn 5+: Closing (confirm, thank)
 
-🟢 SCORE 7-10 (POSITIVE) - Customer uses these words:
-"thanks", "thank you", "appreciate", "great", "perfect", "helpful", "glad", "happy"
-EXAMPLE: "Thank you for helping" → SCORE = 7 or 8
-
-🚨 MANDATORY SCORING LOGIC:
-1. FIRST: Scan customer text for words in lists above
-2. IF you find "miserable", "hate", "furious", "worst", "awful", "horrible" → emotionScore = 1 or 2
-3. IF you find "frustrated", "upset", "angry" → emotionScore = 2 or 3
-4. IF you find "basically wanting", "return", "issue" BUT NO emotion words → emotionScore = 5 or 6
-5. NEVER score negative words as 7+ (7+ is ONLY for "thanks", "appreciate", "great")
-
-REAL EXAMPLES TO FOLLOW:
-❌ WRONG: "I'm frustrated" → emotionScore: 7 (THIS IS WRONG!)
-✅ CORRECT: "I'm frustrated" → emotionScore: 2 or 3
-❌ WRONG: "I'm miserable" → emotionScore: 7 (THIS IS WRONG!)
-✅ CORRECT: "I'm miserable" → emotionScore: 1 or 2
-✅ CORRECT: "Can you help me return this" → emotionScore: 5 or 6
-✅ CORRECT: "Thank you so much" → emotionScore: 7 or 8
-
-2️⃣ RESPONSE QUALITY (1-10) - Agent's performance:
-
-⚠️ CRITICAL: If agent hasn't spoken yet, return null for responseQuality!
-
-IF AGENT HAS SPOKEN:
-• 1-3: No empathy, robotic, ignoring emotion
-• 4-6: Some acknowledgment, but delayed or weak
-• 7-8: Direct empathy, acknowledges emotion quickly
-• 9-10: Perfect empathy + action ("I understand, let me fix this now")
-
-3️⃣ EXPERIENCE SCORE (1-10) - Call trajectory:
-• 1-3: Customer repeating issue, escalating, getting more upset
-• 4-6: Problem stated, waiting for resolution
-• 7-8: Progress being made, customer calming down
-• 9-10: Issue resolved, customer satisfied
-
-📋 Extract customer name (if mentioned) and issue (the problem customer needs fixed):
-   
-   ISSUE REQUIREMENTS:
-   - Must be 1-2 words ONLY
-   - Describe the PROBLEM that needs fixing (not the action)
-   - Use Title Case
-   
-   Examples:
-   ✅ CORRECT: "Package Return", "Refund Issue", "Account Access", "Damaged Item", "Billing Error"
-   ❌ WRONG: "Product Return Request" (too long, 3 words)
-   ❌ WRONG: "return" (lowercase, should be "Package Return")
-   ❌ WRONG: "Wanting To Return" (too long)
-
-💡 COACHING - Provide ONLY 1 coaching item:
-   
-   Keep coaching under 160 characters total. Format: "Customer feels X. Say Y to address it."
-   
-   Examples:
-   - "Customer is frustrated about return. Acknowledge with 'I understand this is frustrating' then provide immediate solution."
-   - "Customer is upset. Start with empathy: 'I'm sorry for the inconvenience' before taking action."
-   
-   MAX LENGTH: 160 characters (including spaces)
-
-💡 COACHING FORMAT - Provide EXACTLY this structure:
+Emotion 1-4: Conflict Resolution
+Emotion 7-10: Praise Agent
 
 {
-  "title": "Action-focused (e.g., 'De-escalation Needed', 'Acknowledge Frustration', 'Build Rapport')",
-  "type": "critical|empathy|action",
-  "context": "One sentence: what customer is feeling (15-20 words)",
-  "guidance": "One sentence: what agent should do (10-15 words)",
-  "phrase": "Exact empathetic phrase to say, quoted (20-35 words)"
+  "title": "2-4 words",
+  "type": "critical|empathy|action|praise|policy",
+  "context": "15-20 words",
+  "guidance": "10-15 words",
+  "phrase": "20-35 words quoted"
 }
 
-EXAMPLE:
-title: "De-escalation Needed"
-context: "Customer is expressing frustration about repeat contact."
-guidance: "Acknowledge their patience and validate their concern."
-phrase: "I hear how frustrating this must be, Laura. Let me take ownership of this right now and make sure we resolve it today."
-
-Respond ONLY with valid JSON:
+JSON:
 {
-  "emotionScore": 1-10,
-  "responseQuality": 1-10 or null,
-  "experienceScore": 1-10,
-  "customerName": "Name or null",
-  "issue": "1-2 words in Title Case",
-  "coaching": [{
-    "title": "2-4 words",
-    "type": "critical|empathy|action",
-    "context": "15-20 words",
-    "guidance": "10-15 words",
-    "phrase": "20-35 words"
-  }]
+  "emotionScore": N,
+  "responseQuality": N or null,
+  "experienceScore": N,
+  "customerName": "X" or null,
+  "issue": "X X",
+  "coaching": [{"title":"X","type":"X","context":"X","guidance":"X","phrase":"X"}]
 }`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -1233,6 +1202,16 @@ function updateCoaching(coachingItems) {
             bgColor = 'bg-green-500/5';
             iconColor = 'text-green-400';
             icon = 'fa-check-circle';
+        } else if (item.type === 'praise') {
+            borderColor = 'border-yellow-500/30';
+            bgColor = 'bg-yellow-500/5';
+            iconColor = 'text-yellow-400';
+            icon = 'fa-star';
+        } else if (item.type === 'policy') {
+            borderColor = 'border-purple-500/30';
+            bgColor = 'bg-purple-500/5';
+            iconColor = 'text-purple-400';
+            icon = 'fa-book';
         }
         
         card.className += ` ${borderColor} ${bgColor}`;
