@@ -830,6 +830,22 @@ IF AGENT HAS SPOKEN:
    
    MAX LENGTH: 160 characters (including spaces)
 
+💡 COACHING FORMAT - Provide EXACTLY this structure:
+
+{
+  "title": "Action-focused (e.g., 'De-escalation Needed', 'Acknowledge Frustration', 'Build Rapport')",
+  "type": "critical|empathy|action",
+  "context": "One sentence: what customer is feeling (15-20 words)",
+  "guidance": "One sentence: what agent should do (10-15 words)",
+  "phrase": "Exact empathetic phrase to say, quoted (20-35 words)"
+}
+
+EXAMPLE:
+title: "De-escalation Needed"
+context: "Customer is expressing frustration about repeat contact."
+guidance: "Acknowledge their patience and validate their concern."
+phrase: "I hear how frustrating this must be, Laura. Let me take ownership of this right now and make sure we resolve it today."
+
 Respond ONLY with valid JSON:
 {
   "emotionScore": 1-10,
@@ -837,7 +853,13 @@ Respond ONLY with valid JSON:
   "experienceScore": 1-10,
   "customerName": "Name or null",
   "issue": "1-2 words in Title Case",
-  "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "max 160 characters"}]
+  "coaching": [{
+    "title": "2-4 words",
+    "type": "critical|empathy|action",
+    "context": "15-20 words",
+    "guidance": "10-15 words",
+    "phrase": "20-35 words"
+  }]
 }`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -1158,33 +1180,61 @@ function updateCoaching(coachingItems) {
         }
         
         const card = document.createElement('div');
-        card.className = 'coaching-card glass-panel p-4 border border-slate-700/30 mb-3';
+        card.className = 'coaching-card glass-panel p-4 border border-slate-700/30 mb-3 rounded-lg';
         
         // Color coding based on type
         let borderColor = 'border-blue-500/30';
         let bgColor = 'bg-blue-500/5';
-        if (item.type === 'action') {
-            borderColor = 'border-green-500/30';
-            bgColor = 'bg-green-500/5';
+        let iconColor = 'text-blue-400';
+        let icon = 'fa-info-circle';
+        
+        if (item.type === 'critical') {
+            borderColor = 'border-red-500/30';
+            bgColor = 'bg-red-500/5';
+            iconColor = 'text-red-400';
+            icon = 'fa-exclamation-circle';
         } else if (item.type === 'empathy') {
             borderColor = 'border-blue-500/30';
             bgColor = 'bg-blue-500/5';
-        } else if (item.type === 'knowledge') {
-            borderColor = 'border-yellow-500/30';
-            bgColor = 'bg-yellow-500/5';
-        } else if (item.type === 'verification') {
+            iconColor = 'text-blue-400';
+            icon = 'fa-heart';
+        } else if (item.type === 'action') {
             borderColor = 'border-green-500/30';
             bgColor = 'bg-green-500/5';
-        } else if (item.type === 'critical') {
-            borderColor = 'border-red-500/30';
-            bgColor = 'bg-red-500/5';
+            iconColor = 'text-green-400';
+            icon = 'fa-check-circle';
         }
         
         card.className += ` ${borderColor} ${bgColor}`;
         
+        // Use new format with context, guidance, and phrase
+        const context = item.context || item.message || '';
+        const guidance = item.guidance || '';
+        const phrase = item.phrase || '';
+        
         card.innerHTML = `
-            <div class="text-sm font-bold text-gray-100 mb-2">${item.title}</div>
-            <div class="text-sm text-gray-300 leading-relaxed">${item.message}</div>
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fas ${icon} ${iconColor} text-lg"></i>
+                <div class="text-base font-bold text-gray-100">${item.title}</div>
+            </div>
+            
+            ${context ? `<p class="text-sm text-gray-300 mb-2 leading-relaxed">${context}</p>` : ''}
+            ${guidance ? `<p class="text-sm text-gray-300 mb-3 leading-relaxed">${guidance}</p>` : ''}
+            
+            ${phrase ? `
+                <div class="bg-slate-800/50 border-l-4 border-blue-400 p-3 mb-3 rounded">
+                    <p class="text-sm text-gray-200 italic leading-relaxed">"${phrase}"</p>
+                </div>
+            ` : ''}
+            
+            ${phrase ? `
+                <button 
+                    onclick="navigator.clipboard.writeText('${phrase.replace(/'/g, "\\'")}'); this.innerHTML='<i class=\\'fas fa-check\\'></i> Copied!'; setTimeout(() => this.innerHTML='<i class=\\'fas fa-copy\\'></i> Use This Phrase', 2000)"
+                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-copy"></i>
+                    Use This Phrase
+                </button>
+            ` : ''}
         `;
         
         container.appendChild(card);
