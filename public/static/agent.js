@@ -2378,6 +2378,19 @@ window.addEventListener('DOMContentLoaded', () => {
     // AI is always connected (cloud-based)
     ollamaConnected = true;
     
+    // Auto-configure Ollama settings if not set
+    const ollamaUrl = localStorage.getItem('ollama-host');
+    const ollamaModel = localStorage.getItem('ollama-model');
+    
+    if (!ollamaUrl || !ollamaModel) {
+        console.log('[INIT] Auto-configuring Ollama settings with RunPod defaults...');
+        localStorage.setItem('ollama-host', 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate');
+        localStorage.setItem('ollama-model', 'qwen3:8b');
+        console.log('[INIT] ✓ Ollama configured: qwen3:8b on RunPod');
+    } else {
+        console.log('[INIT] ✓ Ollama already configured:', ollamaUrl, ollamaModel);
+    }
+    
     // Load company knowledge info
     loadCompanyKnowledgeInfo();
     
