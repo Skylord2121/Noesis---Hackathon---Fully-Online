@@ -622,6 +622,9 @@ function addTranscriptMessage(role, text, emotionScore = null) {
     const label = isCustomer ? 'Customer' : 'Agent';
     const textColor = isCustomer ? 'text-yellow-300' : 'text-blue-300';
     
+    // Capitalize first letter for proper grammar
+    const capitalizedText = text.charAt(0).toUpperCase() + text.slice(1);
+    
     // Emotion score badge for customer messages (tiny, top-right)
     const emotionBadge = (isCustomer && emotionScore !== null) 
         ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 font-semibold tabular-nums">${emotionScore.toFixed(1)}</span>`
@@ -634,7 +637,7 @@ function addTranscriptMessage(role, text, emotionScore = null) {
                 <div class="text-xs ${textColor} font-semibold">${label}</div>
                 ${emotionBadge}
             </div>
-            <div class="text-sm text-gray-300 leading-relaxed">${text}</div>
+            <div class="text-sm text-gray-300 leading-relaxed">${capitalizedText}</div>
         </div>
     `;
     
@@ -725,10 +728,19 @@ async function getConversationAnalysis() {
         const lastAgent = conversationHistory.filter(m => m.role === 'agent').slice(-1)[0];
         
         // Detect negative keywords in customer's message
-        const negativeKeywords = ['frustrated', 'upset', 'angry', 'ridiculous', 'unacceptable', 'terrible', 'tired of', 'sick of', 'disappointed', 'annoyed', 'irritated', 'furious', 'mad', 'hate', 'worst'];
+        const severeKeywords = ['miserable', 'hate', 'furious', 'worst', 'awful', 'horrible'];
+        const negativeKeywords = ['frustrated', 'upset', 'angry', 'ridiculous', 'unacceptable', 'terrible', 'tired of', 'sick of', 'disappointed', 'annoyed', 'irritated', 'mad', 'wanting', 'basically'];
         const customerText = lastCustomer ? lastCustomer.content.toLowerCase() : '';
+        
+        const foundSevere = severeKeywords.filter(kw => customerText.includes(kw));
         const foundNegatives = negativeKeywords.filter(kw => customerText.includes(kw));
-        const keywordHint = foundNegatives.length > 0 ? `\n⚠️ DETECTED NEGATIVE KEYWORDS: ${foundNegatives.join(', ')} - Customer emotion should be 1-4!` : '';
+        
+        let keywordHint = '';
+        if (foundSevere.length > 0) {
+            keywordHint = `\n🚨 CRITICAL: SEVERE NEGATIVE KEYWORDS DETECTED: ${foundSevere.join(', ')}\n⚠️ EMOTION SCORE MUST BE 1-2 (NOT 7!)`;
+        } else if (foundNegatives.length > 0) {
+            keywordHint = `\n⚠️ NEGATIVE KEYWORDS DETECTED: ${foundNegatives.join(', ')}\n⚠️ EMOTION SCORE MUST BE 2-4 (NOT 7!)`;
+        }
         
         const prompt = `You are analyzing a customer service conversation. IMPORTANT: Base scores ONLY on actual words used.${keywordHint}
 
@@ -739,30 +751,40 @@ LAST CUSTOMER MESSAGE: "${lastCustomer ? lastCustomer.content : 'None'}"
 AGENT HAS SPOKEN: ${lastAgent ? 'YES' : 'NO'}
 
 === CRITICAL SCORING INSTRUCTIONS ===
+🚨 YOU MUST FOLLOW THESE RULES EXACTLY - DO NOT DEVIATE! 🚨
 
-1️⃣ EMOTION SCORE (1-10) - Customer's CURRENT emotional state:
+1️⃣ EMOTION SCORE (1-10) - SCAN FOR THESE EXACT WORDS:
 
-NEGATIVE KEYWORDS (Score 1-4):
-⚠️ CRITICAL: "frustrated" = Score 2-3 (NOT 7!)
-⚠️ CRITICAL: "upset", "angry" = Score 1-2
-- "ridiculous", "unacceptable", "terrible", "awful", "worst"
-- "tired of", "sick of", "again", "still", "why is", "how come"
-- "disappointed", "annoyed", "irritated", "furious", "mad", "hate"
+🔴 SCORE 1-2 (SEVERE NEGATIVE) - Customer uses these words:
+"miserable", "hate", "furious", "worst", "awful", "horrible", "angry", "upset"
+EXAMPLE: "I'm a miserable customer" → SCORE = 1 or 2 (NEVER 7!)
 
-NEUTRAL KEYWORDS (Score 5-6):
-- "help", "need", "want", "can you", "looking for", "wondering"
-- No strong emotion words, just stating facts
+🟠 SCORE 2-4 (NEGATIVE) - Customer uses these words:
+"frustrated", "ridiculous", "unacceptable", "terrible", "disappointed", "annoyed", "irritated", "mad"
+EXAMPLE: "I'm frustrated" → SCORE = 2 or 3 (NEVER 7!)
 
-POSITIVE KEYWORDS (Score 7-10):
-- "thanks", "thank you", "appreciate", "great", "perfect", "helpful"
-- "understand", "glad", "happy", "good", "excellent"
+🟡 SCORE 5-6 (NEUTRAL) - No emotion words, just facts:
+"help", "need", "want", "can you", "looking for", "wondering", "basically wanting"
+EXAMPLE: "I want to return" → SCORE = 5 or 6
 
-SCORING RULES:
-• If customer says "frustrated/upset/angry" → Score 2-3 (NOT 7!)
-• If customer complains or mentions problems → Score 3-5
-• If customer is neutral/asking questions → Score 5-6
-• If customer says "thanks/appreciate" → Score 7-8
-• ALWAYS scan for negative keywords FIRST
+🟢 SCORE 7-10 (POSITIVE) - Customer uses these words:
+"thanks", "thank you", "appreciate", "great", "perfect", "helpful", "glad", "happy"
+EXAMPLE: "Thank you for helping" → SCORE = 7 or 8
+
+🚨 MANDATORY SCORING LOGIC:
+1. FIRST: Scan customer text for words in lists above
+2. IF you find "miserable", "hate", "furious", "worst", "awful", "horrible" → emotionScore = 1 or 2
+3. IF you find "frustrated", "upset", "angry" → emotionScore = 2 or 3
+4. IF you find "basically wanting", "return", "issue" BUT NO emotion words → emotionScore = 5 or 6
+5. NEVER score negative words as 7+ (7+ is ONLY for "thanks", "appreciate", "great")
+
+REAL EXAMPLES TO FOLLOW:
+❌ WRONG: "I'm frustrated" → emotionScore: 7 (THIS IS WRONG!)
+✅ CORRECT: "I'm frustrated" → emotionScore: 2 or 3
+❌ WRONG: "I'm miserable" → emotionScore: 7 (THIS IS WRONG!)
+✅ CORRECT: "I'm miserable" → emotionScore: 1 or 2
+✅ CORRECT: "Can you help me return this" → emotionScore: 5 or 6
+✅ CORRECT: "Thank you so much" → emotionScore: 7 or 8
 
 2️⃣ RESPONSE QUALITY (1-10) - Agent's performance:
 
@@ -782,17 +804,15 @@ IF AGENT HAS SPOKEN:
 
 📋 Extract customer name (if mentioned) and issue as a formal description (e.g., "Product Return Request", "Account Access Issue").
 
-💡 COACHING - Provide ONLY 1 coaching item with 3 sentences:
+💡 COACHING - Provide ONLY 1 coaching item:
    
-   Structure your coaching as exactly 3 sentences:
-   1. HOW THE CUSTOMER FEELS: Describe their emotional state and frustration level
-   2. WHY THEY FEEL THIS WAY: Explain the root cause of their emotion
-   3. HOW TO REMEDY: Give specific action the agent should take immediately
+   Keep coaching under 160 characters total. Format: "Customer feels X. Say Y to address it."
    
-   Example for frustrated customer:
-   "The customer is feeling frustrated and unheard about their return issue. They likely feel this way because they've had to explain their problem multiple times without resolution. Acknowledge their frustration directly by saying 'I understand this has been frustrating' before immediately taking action to resolve their return."
+   Examples:
+   - "Customer is frustrated about return. Acknowledge with 'I understand this is frustrating' then provide immediate solution."
+   - "Customer is upset. Start with empathy: 'I'm sorry for the inconvenience' before taking action."
    
-   Keep each sentence clear and actionable. Total length: 40-60 words.
+   MAX LENGTH: 160 characters (including spaces)
 
 Respond ONLY with valid JSON:
 {
@@ -801,7 +821,7 @@ Respond ONLY with valid JSON:
   "experienceScore": 1-10,
   "customerName": "Name or null",
   "issue": "formal description in Title Case",
-  "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "3 sentences, 40-60 words total"}]
+  "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "max 160 characters"}]
 }`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -812,8 +832,8 @@ Respond ONLY with valid JSON:
                 prompt: prompt,
                 stream: false,
                 options: {
-                    temperature: 0.3,
-                    num_predict: 1000
+                    temperature: 0.2,
+                    num_predict: 600
                 }
             })
         });
@@ -826,16 +846,20 @@ Respond ONLY with valid JSON:
         const ollamaData = await response.json();
         const responseText = ollamaData.response.trim();
         
-        console.log('[AI] Raw response:', responseText.substring(0, 300));
+        console.log('[AI] 📥 OLLAMA RAW RESPONSE (first 500 chars):', responseText.substring(0, 500));
+        console.log('[AI] 📝 Customer text analyzed:', customerText);
+        console.log('[AI] 🔍 Detected negative keywords:', foundNegatives.join(', ') || 'none');
+        console.log('[AI] 🚨 Detected SEVERE keywords:', foundSevere.join(', ') || 'none');
         
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
-            console.error('[AI] No JSON found');
+            console.error('[AI] ❌ No JSON found in Ollama response!');
             return null;
         }
         
         const analysis = JSON.parse(jsonMatch[0]);
-        console.log('[AI] ✓ Parsed analysis:', analysis);
+        console.log('[AI] ✅ OLLAMA ANALYSIS PARSED:', JSON.stringify(analysis, null, 2));
+        console.log('[AI] 📊 EMOTION SCORE FROM OLLAMA:', analysis.emotionScore);
         
         return analysis;
         
