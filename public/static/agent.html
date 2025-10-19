@@ -1002,10 +1002,19 @@
                             <div class="flex items-start gap-2">
                                 <i class="fas fa-info-circle text-blue-400 text-xs mt-0.5"></i>
                                 <div class="text-xs text-blue-200">
-                                    <strong>Custom Configuration:</strong> Enter your Ollama endpoint URL and model name below, then click Save. Leave empty to disable AI coaching.
+                                    <strong>Configuration Required:</strong> Enter your Ollama endpoint URL and model name below, then click Save. AI coaching and emotional tracking will be disabled without these settings.
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Quick Setup Button -->
+                        <button 
+                            onclick="fillRunPodDefaults()" 
+                            class="w-full px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2"
+                        >
+                            <i class="fas fa-magic"></i>
+                            <span>Use RunPod Example Settings</span>
+                        </button>
                         
                         <!-- URL Input -->
                         <div>

@@ -736,6 +736,12 @@ async function getConversationAnalysis() {
         const ollamaUrl = localStorage.getItem('ollama-host') || '';
         const model = localStorage.getItem('ollama-model') || '';  // User must configure model
         
+        // Validate configuration
+        if (!ollamaUrl || !model) {
+            console.warn('[AI] ⚠️ Ollama not configured. Please set URL and model in Settings.');
+            return null;
+        }
+        
         console.log('[AI] 🤖 Analyzing full conversation with 3-metric system');
         
         // Build full conversation context
@@ -1389,6 +1395,27 @@ function saveOllamaSettings() {
     }
     
     console.log('[OLLAMA] Settings saved:', { url, model });
+}
+
+// Fill in RunPod example settings
+function fillRunPodDefaults() {
+    const urlInput = document.getElementById('ollama-url-input');
+    const modelInput = document.getElementById('ollama-model-input');
+    
+    if (urlInput) urlInput.value = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
+    if (modelInput) modelInput.value = 'qwen2.5:7b';
+    
+    // Show message
+    const saveBtn = document.getElementById('save-ollama-btn');
+    if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fas fa-hand-point-up"></i> <span>Click to Save!</span>';
+        saveBtn.className = 'px-3 py-2 bg-yellow-500/30 border border-yellow-500/40 text-yellow-200 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 animate-pulse';
+        
+        setTimeout(() => {
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> <span>Save</span>';
+            saveBtn.className = 'px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2';
+        }, 3000);
+    }
 }
 
 // Load Ollama settings on page load
