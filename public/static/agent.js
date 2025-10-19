@@ -1393,12 +1393,9 @@ function saveOllamaSettings() {
 
 // Load Ollama settings on page load
 function loadOllamaSettings() {
-    // Default values
-    const defaultUrl = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
-    const defaultModel = 'qwen2.5:7b';
-    
-    const url = localStorage.getItem('ollama-host') || defaultUrl;
-    const model = localStorage.getItem('ollama-model') || defaultModel;
+    // Get saved settings from localStorage (no defaults)
+    const url = localStorage.getItem('ollama-host') || '';
+    const model = localStorage.getItem('ollama-model') || '';
     
     // Update input fields
     const urlInput = document.getElementById('ollama-url-input');
@@ -1421,14 +1418,6 @@ function loadOllamaSettings() {
         const displayModel = model || 'Not configured';
         modelDisplay.textContent = displayModel;
         modelDisplay.className = model ? 'text-blue-300 font-semibold' : 'text-gray-400';
-    }
-    
-    // Auto-save defaults if not already configured
-    if (!localStorage.getItem('ollama-host') && url === defaultUrl) {
-        localStorage.setItem('ollama-host', url);
-    }
-    if (!localStorage.getItem('ollama-model') && model === defaultModel) {
-        localStorage.setItem('ollama-model', model);
     }
     
     console.log('[OLLAMA] Settings loaded:', { url, model });

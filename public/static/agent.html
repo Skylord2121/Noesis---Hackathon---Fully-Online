@@ -997,6 +997,16 @@
                     </h3>
                     
                     <div class="space-y-3">
+                        <!-- Info Notice -->
+                        <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-info-circle text-blue-400 text-xs mt-0.5"></i>
+                                <div class="text-xs text-blue-200">
+                                    <strong>Custom Configuration:</strong> Enter your Ollama endpoint URL and model name below, then click Save. Leave empty to disable AI coaching.
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- URL Input -->
                         <div>
                             <label class="text-xs font-semibold text-gray-300 mb-1 block">
@@ -1006,7 +1016,7 @@
                             <input 
                                 type="text" 
                                 id="ollama-url-input"
-                                value="https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate"
+                                value=""
                                 placeholder="https://your-ollama-endpoint.com OR http://localhost:11434"
                                 class="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
                             />
@@ -1022,8 +1032,8 @@
                             <input 
                                 type="text" 
                                 id="ollama-model-input"
-                                value="qwen2.5:7b"
-                                placeholder="qwen2.5:latest OR llama3:8b"
+                                value=""
+                                placeholder="qwen2.5:7b OR llama3:8b"
                                 class="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
                             />
                             <p class="text-xs text-gray-500 mt-1">Model from: ollama list</p>
