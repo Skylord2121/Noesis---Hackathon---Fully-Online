@@ -1403,7 +1403,7 @@ function fillRunPodDefaults() {
     const modelInput = document.getElementById('ollama-model-input');
     
     if (urlInput) urlInput.value = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
-    if (modelInput) modelInput.value = 'qwen2.5:7b';
+    if (modelInput) modelInput.value = 'qwen2.5';
     
     // Show message
     const saveBtn = document.getElementById('save-ollama-btn');
@@ -1517,7 +1517,7 @@ async function testOllamaConnection() {
                     // Update configured model display (only if not already configured)
                     const modelDisplay = document.getElementById('ollama-model-display');
                     if (modelDisplay && modelDisplay.textContent === 'Not configured') {
-                        const modelName = data.models[0]?.name || 'qwen2.5:7b';
+                        const modelName = data.models[0]?.name || 'qwen2.5';
                         modelDisplay.textContent = modelName;
                         modelDisplay.className = 'text-green-300 font-semibold';
                     }
@@ -1605,7 +1605,7 @@ async function pingOllamaConnection() {
         
         // Get configured model
         const modelInput = document.getElementById('ollama-model-input');
-        const configuredModel = modelInput?.value.trim() || localStorage.getItem('ollama-model') || 'qwen2.5:7b';
+        const configuredModel = modelInput?.value.trim() || localStorage.getItem('ollama-model') || 'qwen2.5';
         
         // Use backend proxy to avoid CORS issues
         const response = await fetch('/api/ollama/generate', {
@@ -2385,8 +2385,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!ollamaUrl || !ollamaModel) {
         console.log('[INIT] Auto-configuring Ollama settings with RunPod defaults...');
         localStorage.setItem('ollama-host', 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate');
-        localStorage.setItem('ollama-model', 'qwen2.5:7b');
-        console.log('[INIT] ✓ Ollama configured: qwen2.5:7b on RunPod');
+        localStorage.setItem('ollama-model', 'qwen2.5');
+        console.log('[INIT] ✓ Ollama configured: qwen2.5 on RunPod');
     } else {
         console.log('[INIT] ✓ Ollama already configured:', ollamaUrl, ollamaModel);
     }
