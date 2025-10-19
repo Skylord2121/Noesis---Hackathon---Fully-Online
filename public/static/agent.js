@@ -899,6 +899,36 @@ Respond ONLY with valid JSON:
         console.log('[AI] ✅ OLLAMA ANALYSIS PARSED:', JSON.stringify(analysis, null, 2));
         console.log('[AI] 📊 EMOTION SCORE FROM OLLAMA:', analysis.emotionScore);
         
+        // FORCE CORRECT EMOTION SCORES based on keywords (override bad AI scoring)
+        const originalScore = analysis.emotionScore;
+        
+        // Positive keywords = 7-10
+        const positiveWords = ['satisfied', 'happy', 'great', 'excellent', 'perfect', 'wonderful', 'fantastic', 'amazing', 'pleased', 'glad', 'appreciate', 'thanks', 'thank you', 'good', 'helpful'];
+        const hasPositive = positiveWords.some(word => customerText.includes(word));
+        
+        // Severe negative = 1-2
+        if (foundSevere.length > 0) {
+            analysis.emotionScore = 1.5;
+            console.log('[AI] 🔧 CORRECTED: Severe negative detected → Score forced to 1.5 (was', originalScore, ')');
+        }
+        // Regular negative = 2-4
+        else if (foundNegatives.length > 0) {
+            analysis.emotionScore = 3.0;
+            console.log('[AI] 🔧 CORRECTED: Negative detected → Score forced to 3.0 (was', originalScore, ')');
+        }
+        // Positive = 7-9
+        else if (hasPositive) {
+            analysis.emotionScore = 8.0;
+            console.log('[AI] 🔧 CORRECTED: Positive keyword detected → Score forced to 8.0 (was', originalScore, ')');
+        }
+        // Neutral default = 5-6 (if AI gave a weird score)
+        else if (analysis.emotionScore > 6 && !hasPositive) {
+            analysis.emotionScore = 5.5;
+            console.log('[AI] 🔧 CORRECTED: No positive words but high score → Forced to 5.5 neutral (was', originalScore, ')');
+        }
+        
+        console.log('[AI] ✅ FINAL EMOTION SCORE:', analysis.emotionScore);
+        
         return analysis;
         
     } catch (error) {
