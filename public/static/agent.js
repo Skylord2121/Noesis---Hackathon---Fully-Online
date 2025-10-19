@@ -1363,8 +1363,15 @@ function saveOllamaSettings() {
     const urlDisplay = document.getElementById('ollama-url-display');
     const modelDisplay = document.getElementById('ollama-model-display');
     
-    if (urlDisplay) urlDisplay.textContent = url;
-    if (modelDisplay) modelDisplay.textContent = model;
+    if (urlDisplay) {
+        urlDisplay.textContent = url;
+        urlDisplay.title = url; // For full URL on hover
+        urlDisplay.className = 'text-blue-300 font-semibold truncate max-w-[180px]';
+    }
+    if (modelDisplay) {
+        modelDisplay.textContent = model;
+        modelDisplay.className = 'text-blue-300 font-semibold';
+    }
     
     // Show success message
     const saveBtn = document.getElementById('save-ollama-btn');
@@ -1398,8 +1405,15 @@ function loadOllamaSettings() {
     const urlDisplay = document.getElementById('ollama-url-display');
     const modelDisplay = document.getElementById('ollama-model-display');
     
-    if (urlDisplay) urlDisplay.textContent = url || 'Not configured';
-    if (modelDisplay) modelDisplay.textContent = model || 'Not configured';
+    if (urlDisplay) {
+        urlDisplay.textContent = url || 'Not configured';
+        urlDisplay.title = url || 'Not configured';
+        urlDisplay.className = url ? 'text-blue-300 font-semibold truncate max-w-[180px]' : 'text-gray-400 truncate max-w-[180px]';
+    }
+    if (modelDisplay) {
+        modelDisplay.textContent = model || 'Not configured';
+        modelDisplay.className = model ? 'text-blue-300 font-semibold' : 'text-gray-400';
+    }
     
     console.log('[OLLAMA] Settings loaded:', { url, model });
 }
@@ -1449,18 +1463,33 @@ async function testOllamaConnection() {
                 // Success state
                 statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-400"></i>';
                 statusText.textContent = 'Connected ✓';
-                statusText.className = 'text-xs font-semibold text-green-300';
+                statusText.className = 'text-xs font-semibold text-green-300 flex items-center gap-1.5';
                 latencyDisplay.textContent = `${latency}ms`;
+                latencyDisplay.className = 'text-green-300 font-semibold';
                 
-                // Update model info if available
+                // Display available models
                 if (data.models && data.models.length > 0) {
-                    const ollamaModel = document.getElementById('ollama-model');
-                    const modelName = data.models.find(m => m.name && m.name.includes('qwen2.5:3b'))?.name 
-                                  || data.models[0]?.name 
-                                  || 'qwen2.5:3b';
-                    if (ollamaModel) {
-                        ollamaModel.textContent = modelName;
+                    const modelsDisplay = document.getElementById('ollama-models-display');
+                    const modelsList = document.getElementById('ollama-models-list');
+                    
+                    if (modelsDisplay && modelsList) {
+                        modelsDisplay.classList.remove('hidden');
+                        modelsList.innerHTML = data.models.map(m => 
+                            `<div class="flex items-center gap-2">
+                                <i class="fas fa-circle text-green-400" style="font-size: 6px;"></i>
+                                <span class="font-mono">${m.name}</span>
+                            </div>`
+                        ).join('');
                     }
+                    
+                    // Update configured model display (only if not already configured)
+                    const modelDisplay = document.getElementById('ollama-model-display');
+                    if (modelDisplay && modelDisplay.textContent === 'Not configured') {
+                        const modelName = data.models[0]?.name || 'qwen2.5:3b';
+                        modelDisplay.textContent = modelName;
+                        modelDisplay.className = 'text-green-300 font-semibold';
+                    }
+                    
                     console.log('[OLLAMA TEST] ✓ Direct Success - Models:', data.models.map(m => m.name).join(', '));
                 } else {
                     console.log('[OLLAMA TEST] ✓ Connected but no models installed');
@@ -1489,17 +1518,33 @@ async function testOllamaConnection() {
                     // Success state via proxy
                     statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-400"></i>';
                     statusText.textContent = 'Connected ✓ (proxy)';
-                    statusText.className = 'text-xs font-semibold text-green-300';
+                    statusText.className = 'text-xs font-semibold text-green-300 flex items-center gap-1.5';
                     latencyDisplay.textContent = `${latency}ms`;
+                    latencyDisplay.className = 'text-green-300 font-semibold';
                     
+                    // Display available models
                     if (data.models && data.models.length > 0) {
-                        const ollamaModel = document.getElementById('ollama-model');
-                        const modelName = data.models.find(m => m.name && m.name.includes('qwen2.5:3b'))?.name 
-                                      || data.models[0]?.name 
-                                      || 'qwen2.5:3b';
-                        if (ollamaModel) {
-                            ollamaModel.textContent = modelName;
+                        const modelsDisplay = document.getElementById('ollama-models-display');
+                        const modelsList = document.getElementById('ollama-models-list');
+                        
+                        if (modelsDisplay && modelsList) {
+                            modelsDisplay.classList.remove('hidden');
+                            modelsList.innerHTML = data.models.map(m => 
+                                `<div class="flex items-center gap-2">
+                                    <i class="fas fa-circle text-green-400" style="font-size: 6px;"></i>
+                                    <span class="font-mono">${m.name}</span>
+                                </div>`
+                            ).join('');
                         }
+                        
+                        // Update configured model display (only if not already configured)
+                        const modelDisplay = document.getElementById('ollama-model-display');
+                        if (modelDisplay && modelDisplay.textContent === 'Not configured') {
+                            const modelName = data.models[0]?.name || 'qwen2.5:3b';
+                            modelDisplay.textContent = modelName;
+                            modelDisplay.className = 'text-green-300 font-semibold';
+                        }
+                        
                         console.log('[OLLAMA TEST] ✓ Proxy Success - Models:', data.models.length);
                     }
                     return; // Success via proxy
@@ -1530,8 +1575,15 @@ async function testOllamaConnection() {
         }
         
         statusText.textContent = `✗ ${errorMsg}`;
-        statusText.className = 'text-xs font-semibold text-red-300';
+        statusText.className = 'text-xs font-semibold text-red-300 flex items-center gap-1.5';
         latencyDisplay.textContent = '--';
+        latencyDisplay.className = 'text-gray-400';
+        
+        // Hide models display on failure
+        const modelsDisplay = document.getElementById('ollama-models-display');
+        if (modelsDisplay) {
+            modelsDisplay.classList.add('hidden');
+        }
         
         console.error('[OLLAMA TEST] ✗ Failed:', error.message);
     } finally {
