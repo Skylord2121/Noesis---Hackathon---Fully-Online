@@ -628,7 +628,7 @@ function addTranscriptMessage(role, text, emotionScore = null) {
     const textColor = isCustomer ? 'text-yellow-300' : 'text-blue-300';
     
     // Capitalize first letter for proper grammar
-    const capitalizedText = text.charAt(0).toUpperCase() + text.slice(1);
+    const capitalizedText = text.trim().charAt(0).toUpperCase() + text.trim().slice(1);
     
     // Emotion score badge for customer messages (tiny, top-right)
     const emotionBadge = (isCustomer && emotionScore !== null) 
