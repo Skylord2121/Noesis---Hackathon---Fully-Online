@@ -1403,7 +1403,7 @@ function fillRunPodDefaults() {
     const modelInput = document.getElementById('ollama-model-input');
     
     if (urlInput) urlInput.value = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
-    if (modelInput) modelInput.value = 'qwen3:8b';
+    if (modelInput) modelInput.value = 'qwen2.5:7b';
     
     // Show message
     const saveBtn = document.getElementById('save-ollama-btn');
@@ -2385,8 +2385,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!ollamaUrl || !ollamaModel) {
         console.log('[INIT] Auto-configuring Ollama settings with RunPod defaults...');
         localStorage.setItem('ollama-host', 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate');
-        localStorage.setItem('ollama-model', 'qwen3:8b');
-        console.log('[INIT] ✓ Ollama configured: qwen3:8b on RunPod');
+        localStorage.setItem('ollama-model', 'qwen2.5:7b');
+        console.log('[INIT] ✓ Ollama configured: qwen2.5:7b on RunPod');
     } else {
         console.log('[INIT] ✓ Ollama already configured:', ollamaUrl, ollamaModel);
     }
