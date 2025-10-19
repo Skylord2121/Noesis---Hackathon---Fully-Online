@@ -15,7 +15,7 @@ app.use('/api/*', cors())
 app.post('/api/ollama/generate', async (c) => {
   try {
     const body = await c.req.json()
-    const ollamaUrl = body.ollamaUrl || 'http://localhost:11434'
+    const ollamaUrl = body.ollamaUrl || ''
     
     const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
@@ -37,7 +37,7 @@ app.post('/api/ollama/generate', async (c) => {
 
 app.get('/api/ollama/tags', async (c) => {
   try {
-    const ollamaUrl = c.req.query('url') || 'http://localhost:11434'
+    const ollamaUrl = c.req.query('url') || ''
     const response = await fetch(`${ollamaUrl}/api/tags`)
     const data = await response.json()
     return c.json(data)
@@ -153,8 +153,8 @@ Respond ONLY with valid JSON (no markdown, no explanation):
 }`
 
     // ONLY USE OLLAMA - No fallback
-    // Use environment variable for Ollama URL (supports ngrok tunnels)
-    const ollamaUrl = c.env?.OLLAMA_URL || 'http://localhost:11434'
+    // Use environment variable for Ollama URL (must be configured by user)
+    const ollamaUrl = c.env?.OLLAMA_URL || ''
     console.log('[OLLAMA] Calling Ollama at', ollamaUrl + '/api/generate')
     console.log('[OLLAMA] Model: qwen3:8b')
     
@@ -272,7 +272,7 @@ Respond ONLY with valid JSON (no markdown, no explanation):
 app.post('/api/test-ollama', async (c) => {
   try {
     const { ollamaUrl, model } = await c.req.json()
-    const url = ollamaUrl || 'http://localhost:11434'
+    const url = ollamaUrl || ''
     const testModel = 'qwen3:8b'  // Always use Qwen3 8B
     
     // Test 1: Check if Ollama server is reachable
@@ -351,7 +351,7 @@ app.post('/api/test-ollama', async (c) => {
 app.post('/api/analyze-message', async (c) => {
   try {
     const { customerMessage, conversationHistory, agentName, customerName, ollamaUrl, model } = await c.req.json()
-    const url = ollamaUrl || 'http://localhost:11434'
+    const url = ollamaUrl || ''
     const ollamaModel = 'qwen3:8b'  // Always use Qwen3 8B
     
     // Build conversation context for Ollama

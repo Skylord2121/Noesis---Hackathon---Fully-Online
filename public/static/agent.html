@@ -989,50 +989,83 @@
 
             <!-- Balanced 2-Column Grid Layout - Blue Theme -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <!-- Ollama AI Section (Local) -->
+                <!-- Ollama AI Configuration Section -->
                 <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-blue-300 mb-3 flex items-center">
                         <i class="fas fa-brain mr-2"></i>
-                        Ollama AI (Local)
+                        Ollama LLM Configuration
                     </h3>
                     
                     <div class="space-y-3">
-                        <div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <div id="ollama-status-icon" class="text-sm">
-                                    <i class="fas fa-circle-notch fa-spin text-gray-400"></i>
-                                </div>
-                                <span id="ollama-status-text" class="text-xs font-semibold text-gray-300">Testing...</span>
-                            </div>
-                            <p class="text-xs text-gray-400">
-                                Local LLM for highest quality coaching without API costs.
-                            </p>
-                        </div>
-                        
-                        <div class="bg-slate-800/40 border border-slate-700/30 rounded p-2">
-                            <div class="text-xs text-gray-400">
-                                <strong class="text-gray-300">Model:</strong> <span id="ollama-model">qwen2.5:3b</span><br/>
-                                <strong class="text-gray-300">URL:</strong> <span id="ollama-url">localhost:11434</span><br/>
-                                <strong class="text-gray-300">Latency:</strong> <span id="ollama-latency">--</span>
-                            </div>
-                        </div>
-                        
-                        <button 
-                            id="test-ollama-btn"
-                            onclick="testOllamaConnection()" 
-                            class="w-full px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2"
-                        >
-                            <i class="fas fa-flask"></i>
-                            <span>Test Connection</span>
-                        </button>
-                        
-                        <div class="bg-slate-700/30 border border-slate-600/30 rounded p-2 settings-info-box">
+                        <!-- Security Notice -->
+                        <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
                             <div class="flex items-start gap-2">
-                                <i class="fas fa-info-circle text-blue-400 text-xs mt-0.5"></i>
-                                <div class="text-xs text-gray-400">
-                                    <strong class="text-gray-300">Setup:</strong> Run <span class="settings-code-highlight bg-slate-700/50 px-1.5 py-0.5 rounded text-[10px] text-blue-300">ollama serve</span> and install <span class="settings-code-highlight bg-slate-700/50 px-1.5 py-0.5 rounded text-[10px] text-blue-300">qwen2.5:3b</span>
+                                <i class="fas fa-shield-alt text-yellow-400 text-xs mt-0.5"></i>
+                                <div class="text-xs text-yellow-200">
+                                    <strong>Security:</strong> Manually configure your LLM URL and model. No defaults provided.
                                 </div>
                             </div>
+                        </div>
+                        
+                        <!-- URL Input -->
+                        <div>
+                            <label class="text-xs font-semibold text-gray-300 mb-1 block">
+                                <i class="fas fa-link mr-1 text-blue-400"></i>
+                                Ollama URL
+                            </label>
+                            <input 
+                                type="text" 
+                                id="ollama-url-input"
+                                value=""
+                                placeholder="https://your-ollama-endpoint.com OR http://localhost:11434"
+                                class="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
+                            />
+                            <p class="text-xs text-gray-500 mt-1">Your Ollama endpoint (no /api/generate path)</p>
+                        </div>
+                        
+                        <!-- Model Input -->
+                        <div>
+                            <label class="text-xs font-semibold text-gray-300 mb-1 block">
+                                <i class="fas fa-brain mr-1 text-blue-400"></i>
+                                Model Name
+                            </label>
+                            <input 
+                                type="text" 
+                                id="ollama-model-input"
+                                value=""
+                                placeholder="qwen2.5:latest OR llama3:8b"
+                                class="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
+                            />
+                            <p class="text-xs text-gray-500 mt-1">Model from: ollama list</p>
+                        </div>
+                        
+                        <!-- Status Display -->
+                        <div class="bg-slate-800/40 border border-slate-700/30 rounded p-2">
+                            <div class="text-xs text-gray-400 space-y-1">
+                                <div><strong class="text-gray-300">Model:</strong> <span id="ollama-model-display">Not configured</span></div>
+                                <div><strong class="text-gray-300">URL:</strong> <span id="ollama-url-display">Not configured</span></div>
+                                <div><strong class="text-gray-300">Latency:</strong> <span id="ollama-latency">--</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button 
+                                id="save-ollama-btn"
+                                onclick="saveOllamaSettings()" 
+                                class="px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2"
+                            >
+                                <i class="fas fa-save"></i>
+                                <span>Save</span>
+                            </button>
+                            <button 
+                                id="test-ollama-btn"
+                                onclick="testOllamaConnection()" 
+                                class="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2"
+                            >
+                                <i class="fas fa-flask"></i>
+                                <span>Test</span>
+                            </button>
                         </div>
                     </div>
                 </div>

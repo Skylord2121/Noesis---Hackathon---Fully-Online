@@ -733,8 +733,8 @@ function processAIAnalysis(analysis) {
 // NEW: Get comprehensive conversation analysis (Emotion + Response + Experience)
 async function getConversationAnalysis() {
     try {
-        const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
-        const model = 'qwen3:8b';  // Always use Qwen3 8B model
+        const ollamaUrl = localStorage.getItem('ollama-host') || '';
+        const model = localStorage.getItem('ollama-model') || '';  // User must configure model
         
         console.log('[AI] 🤖 Analyzing full conversation with 3-metric system');
         
@@ -916,8 +916,8 @@ async function getAIAnalysis(text, voiceMetrics = null) {
     try {
         // Call Ollama DIRECTLY from browser (not through backend)
         // This works because user runs: $env:OLLAMA_ORIGINS="*"; ollama serve
-        const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
-        const model = 'qwen3:8b';  // Always use Qwen3 8B model
+        const ollamaUrl = localStorage.getItem('ollama-host') || '';
+        const model = localStorage.getItem('ollama-model') || '';  // User must configure model
         
         console.log('[AI] 🤖 Calling Ollama DIRECTLY from browser');
         console.log('[AI] URL:', ollamaUrl);
@@ -1323,8 +1323,9 @@ function openSettings() {
     const modal = document.getElementById('settings-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        // Auto-test Ollama connection when settings open
-        testOllamaConnection();
+        // Load saved settings
+        loadOllamaSettings();
+        // Don't auto-test - let user configure first
     }
 }
 
@@ -1336,6 +1337,71 @@ function closeSettings() {
 function saveSettings() {
     showToast('Settings saved!', 'success');
     closeSettings();
+}
+
+// Save Ollama settings to localStorage
+function saveOllamaSettings() {
+    const urlInput = document.getElementById('ollama-url-input');
+    const modelInput = document.getElementById('ollama-model-input');
+    
+    if (!urlInput || !modelInput) return;
+    
+    const url = urlInput.value.trim();
+    const model = modelInput.value.trim();
+    
+    // Validate inputs
+    if (!url || !model) {
+        alert('Please enter both URL and Model name');
+        return;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('ollama-host', url);
+    localStorage.setItem('ollama-model', model);
+    
+    // Update display
+    const urlDisplay = document.getElementById('ollama-url-display');
+    const modelDisplay = document.getElementById('ollama-model-display');
+    
+    if (urlDisplay) urlDisplay.textContent = url;
+    if (modelDisplay) modelDisplay.textContent = model;
+    
+    // Show success message
+    const saveBtn = document.getElementById('save-ollama-btn');
+    if (saveBtn) {
+        const originalHtml = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-check"></i> <span>Saved!</span>';
+        saveBtn.className = 'px-3 py-2 bg-green-500/30 border border-green-500/40 text-green-200 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2';
+        
+        setTimeout(() => {
+            saveBtn.innerHTML = originalHtml;
+            saveBtn.className = 'px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2';
+        }, 2000);
+    }
+    
+    console.log('[OLLAMA] Settings saved:', { url, model });
+}
+
+// Load Ollama settings on page load
+function loadOllamaSettings() {
+    const url = localStorage.getItem('ollama-host') || '';
+    const model = localStorage.getItem('ollama-model') || '';
+    
+    // Update input fields
+    const urlInput = document.getElementById('ollama-url-input');
+    const modelInput = document.getElementById('ollama-model-input');
+    
+    if (urlInput) urlInput.value = url;
+    if (modelInput) modelInput.value = model;
+    
+    // Update display fields
+    const urlDisplay = document.getElementById('ollama-url-display');
+    const modelDisplay = document.getElementById('ollama-model-display');
+    
+    if (urlDisplay) urlDisplay.textContent = url || 'Not configured';
+    if (modelDisplay) modelDisplay.textContent = model || 'Not configured';
+    
+    console.log('[OLLAMA] Settings loaded:', { url, model });
 }
 
 // Test Ollama Connection (Direct from Browser - bypasses CORS with mode: 'no-cors')
@@ -1356,10 +1422,21 @@ async function testOllamaConnection() {
     const startTime = Date.now();
     
     try {
-        // FIRST: Try direct connection from browser to localhost:11434
-        // This tests YOUR local machine, not the sandbox server
+        // Get configured URL from localStorage or input field
+        const urlInput = document.getElementById('ollama-url-input');
+        const configuredUrl = urlInput?.value.trim() || localStorage.getItem('ollama-host') || '';
+        
+        if (!configuredUrl) {
+            statusIcon.innerHTML = '<i class="fas fa-exclamation-circle text-yellow-400"></i>';
+            statusText.textContent = 'Please configure URL first';
+            statusText.className = 'text-xs font-semibold text-yellow-300';
+            testBtn.disabled = false;
+            return;
+        }
+        
+        // FIRST: Try direct connection to configured URL
         try {
-            const response = await fetch('http://localhost:11434/api/tags', {
+            const response = await fetch(`${configuredUrl}/api/tags`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
