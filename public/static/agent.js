@@ -836,10 +836,11 @@ JSON:
   "coaching": [{"title":"X","type":"X","context":"X","guidance":"X","phrase":"X"}]
 }`;
         
-        const response = await fetch(`${ollamaUrl}/api/generate`, {
+        const response = await fetch('/api/ollama/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                ollamaUrl: ollamaUrl,
                 model: model,
                 prompt: prompt,
                 stream: false,
@@ -978,10 +979,11 @@ Respond with ONLY valid JSON:
   "coaching": [{"type": "empathy|knowledge|action", "title": "2-4 words", "message": "3-5 words"}]
 }`;
         
-        const response = await fetch(`${ollamaUrl}/api/generate`, {
+        const response = await fetch('/api/ollama/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                ollamaUrl: ollamaUrl,
                 model: model,
                 prompt: prompt,
                 stream: false,
