@@ -15,7 +15,10 @@ app.use('/api/*', cors())
 app.post('/api/ollama/generate', async (c) => {
   try {
     const body = await c.req.json()
-    const ollamaUrl = body.ollamaUrl || ''
+    let ollamaUrl = body.ollamaUrl || ''
+    
+    // Remove /api/generate if already present in URL
+    ollamaUrl = ollamaUrl.replace(/\/api\/generate$/, '')
     
     const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
@@ -37,7 +40,11 @@ app.post('/api/ollama/generate', async (c) => {
 
 app.get('/api/ollama/tags', async (c) => {
   try {
-    const ollamaUrl = c.req.query('url') || ''
+    let ollamaUrl = c.req.query('url') || ''
+    
+    // Remove /api/generate if present in URL
+    ollamaUrl = ollamaUrl.replace(/\/api\/generate$/, '')
+    
     const response = await fetch(`${ollamaUrl}/api/tags`)
     const data = await response.json()
     return c.json(data)

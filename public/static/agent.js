@@ -1462,9 +1462,9 @@ async function testOllamaConnection() {
             return;
         }
         
-        // FIRST: Try direct connection to configured URL
+        // Use backend proxy to avoid CORS issues
         try {
-            const response = await fetch(`${configuredUrl}/api/tags`, {
+            const response = await fetch(`/api/ollama/tags?url=${encodeURIComponent(configuredUrl)}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -1508,67 +1508,17 @@ async function testOllamaConnection() {
                 } else {
                     console.log('[OLLAMA TEST] ✓ Connected but no models installed');
                 }
-                return; // Success - exit function
+                console.log('[OLLAMA TEST] ✓ Success - Models:', data.models ? data.models.length : 0);
+                return; // Success
             } else {
                 throw new Error(`HTTP ${response.status}`);
             }
-        } catch (directError) {
-            // Direct connection failed - this might be CORS blocking or Ollama not running
-            console.log('[OLLAMA TEST] Direct connection blocked or failed:', directError.message);
-            
-            // FALLBACK: Try via backend proxy (for production deployment)
-            try {
-                const response = await fetch('/api/ollama/tags');
-                const latency = Date.now() - startTime;
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Check if there's an error in the response
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    
-                    // Success state via proxy
-                    statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-400"></i>';
-                    statusText.textContent = 'Connected ✓ (proxy)';
-                    statusText.className = 'text-xs font-semibold text-green-300 flex items-center gap-1.5';
-                    latencyDisplay.textContent = `${latency}ms`;
-                    latencyDisplay.className = 'text-green-300 font-semibold';
-                    
-                    // Display available models
-                    if (data.models && data.models.length > 0) {
-                        const modelsDisplay = document.getElementById('ollama-models-display');
-                        const modelsList = document.getElementById('ollama-models-list');
-                        
-                        if (modelsDisplay && modelsList) {
-                            modelsDisplay.classList.remove('hidden');
-                            modelsList.innerHTML = data.models.map(m => 
-                                `<div class="flex items-center gap-2">
-                                    <i class="fas fa-circle text-green-400" style="font-size: 6px;"></i>
-                                    <span class="font-mono">${m.name}</span>
-                                </div>`
-                            ).join('');
-                        }
-                        
-                        // Update configured model display (only if not already configured)
-                        const modelDisplay = document.getElementById('ollama-model-display');
-                        if (modelDisplay && modelDisplay.textContent === 'Not configured') {
-                            const modelName = data.models[0]?.name || 'qwen3:8b';
-                            modelDisplay.textContent = modelName;
-                            modelDisplay.className = 'text-green-300 font-semibold';
-                        }
-                        
-                        console.log('[OLLAMA TEST] ✓ Proxy Success - Models:', data.models.length);
-                    }
-                    return; // Success via proxy
-                } else {
-                    throw new Error(`Proxy HTTP ${response.status}`);
-                }
-            } catch (proxyError) {
-                // Both direct and proxy failed
-                throw new Error('Not Running - Start with: ollama serve');
+        } catch (error) {
+            // Check if there's an error message in the response
+            if (error.message) {
+                throw error;
             }
+            throw new Error('Connection failed');
         }
     } catch (error) {
         // Failure state
@@ -1639,17 +1589,16 @@ async function pingOllamaConnection() {
         const modelInput = document.getElementById('ollama-model-input');
         const configuredModel = modelInput?.value.trim() || localStorage.getItem('ollama-model') || 'qwen3:8b';
         
-        // Remove /api/generate if present in URL
-        const baseUrl = configuredUrl.replace(/\/api\/generate$/, '');
-        
-        // Send a simple ping request using the /api/generate endpoint
-        const response = await fetch(`${baseUrl}/api/generate`, {
+        // Use backend proxy to avoid CORS issues
+        const response = await fetch('/api/ollama/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                ollamaUrl: configuredUrl,
                 model: configuredModel,
                 prompt: 'ping',
-                stream: false
+                stream: false,
+                options: {}
             }),
             signal: AbortSignal.timeout(10000) // 10 second timeout
         });
