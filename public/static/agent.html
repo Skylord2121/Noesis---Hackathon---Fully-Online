@@ -627,6 +627,32 @@
             border-color: rgba(37, 99, 235, 0.3) !important;
         }
 
+        /* Light Mode - Score Colors (for dynamic colored scores) */
+        body.light-mode .text-red-400 {
+            color: #dc2626 !important;
+        }
+
+        body.light-mode .text-orange-400 {
+            color: #ea580c !important;
+        }
+
+        body.light-mode .text-yellow-400 {
+            color: #ca8a04 !important;
+        }
+
+        body.light-mode .text-green-400 {
+            color: #16a34a !important;
+        }
+
+        body.light-mode .text-blue-400 {
+            color: #2563eb !important;
+        }
+
+        /* Light Mode - Metric Badge Backgrounds */
+        body.light-mode .bg-blue-500\/10 {
+            background: rgba(59, 130, 246, 0.12) !important;
+        }
+
         /* Mobile Responsive Design */
         @media (max-width: 768px) {
             html, body {
@@ -893,15 +919,15 @@
                         <div class="flex items-center gap-2">
                             <div class="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                 <span class="text-xs text-gray-400">Emotion</span>
-                                <span id="emotion-score" class="text-base font-bold text-blue-400 tabular-nums">--</span>
+                                <span id="emotion-score" class="text-base font-bold tabular-nums">--</span>
                             </div>
-                            <div class="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                            <div class="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                 <span class="text-xs text-gray-400">Response</span>
-                                <span id="response-score" class="text-base font-bold text-purple-400 tabular-nums">--</span>
+                                <span id="response-score" class="text-base font-bold tabular-nums">--</span>
                             </div>
-                            <div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg">
+                            <div class="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                 <span class="text-xs text-gray-400">Experience</span>
-                                <span id="experience-score" class="text-base font-bold text-green-400 tabular-nums">--</span>
+                                <span id="experience-score" class="text-base font-bold tabular-nums">--</span>
                             </div>
                             <div class="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                 <span id="call-time" class="text-base font-mono font-bold text-blue-400 tabular-nums">00:00</span>

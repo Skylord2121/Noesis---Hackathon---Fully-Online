@@ -944,79 +944,57 @@ Respond with ONLY valid JSON:
 // NEW 3-METRIC SYSTEM UI UPDATES
 function updateEmotionScore(score) {
     const elem = document.getElementById('emotion-score');
-    const label = document.getElementById('emotion-label');
     if (!elem) return;
     
     elem.textContent = score.toFixed(1);
     
-    // Update label and color based on score
-    if (label) {
-        if (score <= 2) {
-            label.textContent = 'Heated';
-            label.className = 'text-xs font-semibold text-red-400';
-        } else if (score <= 4) {
-            label.textContent = 'Tense';
-            label.className = 'text-xs font-semibold text-orange-400';
-        } else if (score <= 6) {
-            label.textContent = 'Neutral';
-            label.className = 'text-xs font-semibold text-yellow-400';
-        } else if (score <= 8) {
-            label.textContent = 'Calm';
-            label.className = 'text-xs font-semibold text-green-400';
-        } else {
-            label.textContent = 'Positive';
-            label.className = 'text-xs font-semibold text-blue-400';
-        }
+    // Apply color based on score
+    if (score <= 2) {
+        elem.className = 'text-base font-bold text-red-400 tabular-nums';
+    } else if (score <= 4) {
+        elem.className = 'text-base font-bold text-orange-400 tabular-nums';
+    } else if (score <= 6) {
+        elem.className = 'text-base font-bold text-yellow-400 tabular-nums';
+    } else if (score <= 8) {
+        elem.className = 'text-base font-bold text-green-400 tabular-nums';
+    } else {
+        elem.className = 'text-base font-bold text-blue-400 tabular-nums';
     }
 }
 
 function updateResponseQuality(score) {
     const elem = document.getElementById('response-score');
-    const label = document.getElementById('response-label');
     if (!elem) return;
     
     elem.textContent = score.toFixed(1);
     
-    // Update label and color based on score
-    if (label) {
-        if (score <= 3) {
-            label.textContent = 'Poor';
-            label.className = 'text-xs font-semibold text-red-400';
-        } else if (score <= 6) {
-            label.textContent = 'Fair';
-            label.className = 'text-xs font-semibold text-orange-400';
-        } else if (score <= 8) {
-            label.textContent = 'Good';
-            label.className = 'text-xs font-semibold text-yellow-400';
-        } else {
-            label.textContent = 'Excellent';
-            label.className = 'text-xs font-semibold text-green-400';
-        }
+    // Apply color based on score
+    if (score <= 3) {
+        elem.className = 'text-base font-bold text-red-400 tabular-nums';
+    } else if (score <= 6) {
+        elem.className = 'text-base font-bold text-orange-400 tabular-nums';
+    } else if (score <= 8) {
+        elem.className = 'text-base font-bold text-yellow-400 tabular-nums';
+    } else {
+        elem.className = 'text-base font-bold text-green-400 tabular-nums';
     }
 }
 
 function updateExperienceScore(score) {
     const elem = document.getElementById('experience-score');
-    const label = document.getElementById('experience-label');
     if (!elem) return;
     
     elem.textContent = score.toFixed(1);
     
-    // Update label and color based on score
-    if (label) {
-        if (score <= 3) {
-            label.textContent = 'Declining';
-            label.className = 'text-xs font-semibold text-red-400';
-        } else if (score <= 6) {
-            label.textContent = 'Neutral';
-            label.className = 'text-xs font-semibold text-orange-400';
-        } else if (score <= 8) {
-            label.textContent = 'Improving';
-            label.className = 'text-xs font-semibold text-green-400';
-        } else {
-            label.textContent = 'Positive';
-            label.className = 'text-xs font-semibold text-blue-400';
-        }
+    // Apply color based on score
+    if (score <= 3) {
+        elem.className = 'text-base font-bold text-red-400 tabular-nums';
+    } else if (score <= 6) {
+        elem.className = 'text-base font-bold text-orange-400 tabular-nums';
+    } else if (score <= 8) {
+        elem.className = 'text-base font-bold text-yellow-400 tabular-nums';
+    } else {
+        elem.className = 'text-base font-bold text-green-400 tabular-nums';
     }
 }
 
