@@ -1393,7 +1393,7 @@ function saveOllamaSettings() {
 function loadOllamaSettings() {
     // Default values
     const defaultUrl = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
-    const defaultModel = 'qwen3:8b';
+    const defaultModel = 'default:latest';
     
     const url = localStorage.getItem('ollama-host') || defaultUrl;
     const model = localStorage.getItem('ollama-model') || defaultModel;
@@ -1499,7 +1499,7 @@ async function testOllamaConnection() {
                     // Update configured model display (only if not already configured)
                     const modelDisplay = document.getElementById('ollama-model-display');
                     if (modelDisplay && modelDisplay.textContent === 'Not configured') {
-                        const modelName = data.models[0]?.name || 'qwen3:8b';
+                        const modelName = data.models[0]?.name || 'default:latest';
                         modelDisplay.textContent = modelName;
                         modelDisplay.className = 'text-green-300 font-semibold';
                     }
@@ -1587,7 +1587,7 @@ async function pingOllamaConnection() {
         
         // Get configured model
         const modelInput = document.getElementById('ollama-model-input');
-        const configuredModel = modelInput?.value.trim() || localStorage.getItem('ollama-model') || 'qwen3:8b';
+        const configuredModel = modelInput?.value.trim() || localStorage.getItem('ollama-model') || 'default:latest';
         
         // Use backend proxy to avoid CORS issues
         const response = await fetch('/api/ollama/generate', {
