@@ -1403,7 +1403,7 @@ function fillRunPodDefaults() {
     const modelInput = document.getElementById('ollama-model-input');
     
     if (urlInput) urlInput.value = 'https://86y7be6mjfb4mj-11434.proxy.runpod.net/api/generate';
-    if (modelInput) modelInput.value = 'qwen2.5:7b';
+    if (modelInput) modelInput.value = 'qwen2.5:3b';
     
     // Show message
     const saveBtn = document.getElementById('save-ollama-btn');
