@@ -780,13 +780,19 @@ IF AGENT HAS SPOKEN:
 • 7-8: Progress being made, customer calming down
 • 9-10: Issue resolved, customer satisfied
 
-📋 Extract customer name (if mentioned) and issue (2 WORDS MAX).
+📋 Extract customer name (if mentioned) and issue as a formal description (e.g., "Product Return Request", "Account Access Issue").
 
-💡 COACHING - Provide ONLY 1 coaching item:
-   - If customer is upset (emotion 1-4): Focus on empathy/acknowledgment
-   - If agent hasn't spoken: Tell agent to acknowledge emotion first
-   - If call is progressing (emotion 5+): Focus on next action/solution
-   - Keep message under 12 words, make it actionable
+💡 COACHING - Provide ONLY 1 coaching item with 3 sentences:
+   
+   Structure your coaching as exactly 3 sentences:
+   1. HOW THE CUSTOMER FEELS: Describe their emotional state and frustration level
+   2. WHY THEY FEEL THIS WAY: Explain the root cause of their emotion
+   3. HOW TO REMEDY: Give specific action the agent should take immediately
+   
+   Example for frustrated customer:
+   "The customer is feeling frustrated and unheard about their return issue. They likely feel this way because they've had to explain their problem multiple times without resolution. Acknowledge their frustration directly by saying 'I understand this has been frustrating' before immediately taking action to resolve their return."
+   
+   Keep each sentence clear and actionable. Total length: 40-60 words.
 
 Respond ONLY with valid JSON:
 {
@@ -794,8 +800,8 @@ Respond ONLY with valid JSON:
   "responseQuality": 1-10 or null,
   "experienceScore": 1-10,
   "customerName": "Name or null",
-  "issue": "2 words max",
-  "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "under 12 words"}]
+  "issue": "formal description in Title Case",
+  "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "3 sentences, 40-60 words total"}]
 }`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -807,7 +813,7 @@ Respond ONLY with valid JSON:
                 stream: false,
                 options: {
                     temperature: 0.3,
-                    num_predict: 800
+                    num_predict: 1000
                 }
             })
         });
@@ -1045,10 +1051,13 @@ function updateCustomerInfo(analysis) {
 function updateCustomerIssue(issue) {
     const elem = document.getElementById('customer-issue');
     if (elem) {
-        // Limit to 2 words max
-        const words = issue.split(' ');
-        const truncated = words.slice(0, 2).join(' ');
-        elem.textContent = truncated;
+        // Convert to Title Case for formal display
+        const titleCase = issue
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        elem.textContent = titleCase;
     }
 }
 
@@ -1122,7 +1131,7 @@ function updateCoaching(coachingItems) {
         
         card.innerHTML = `
             <div class="text-sm font-bold text-gray-100 mb-2">${item.title}</div>
-            <div class="text-xs text-gray-300 leading-relaxed whitespace-pre-line">${item.message}</div>
+            <div class="text-sm text-gray-300 leading-relaxed">${item.message}</div>
         `;
         
         container.appendChild(card);
