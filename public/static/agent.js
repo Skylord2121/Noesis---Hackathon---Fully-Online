@@ -44,6 +44,11 @@ function generateSessionId() {
 
 // Initialize new session
 function startNewSession() {
+    // Reset session state
+    conversationHistory = [];
+    customerNameFixed = false;
+    customerIssueFixed = false;
+    
     currentSessionId = generateSessionId();
     const baseUrl = window.location.origin;
     customerLink = `${baseUrl}/static/customer.html?session=${currentSessionId}`;
@@ -699,7 +704,7 @@ function processAIAnalysis(analysis) {
         customerNameFixed = true;
     }
     
-    // Update issue - allow it to update as conversation evolves (don't lock it)
+    // Update issue - lock it once determined (don't change throughout chat)
     if (analysis.issue) {
         updateCustomerIssue(analysis.issue);
     }
@@ -802,7 +807,18 @@ IF AGENT HAS SPOKEN:
 • 7-8: Progress being made, customer calming down
 • 9-10: Issue resolved, customer satisfied
 
-📋 Extract customer name (if mentioned) and issue as a formal description (e.g., "Product Return Request", "Account Access Issue").
+📋 Extract customer name (if mentioned) and issue (the problem customer needs fixed):
+   
+   ISSUE REQUIREMENTS:
+   - Must be 1-2 words ONLY
+   - Describe the PROBLEM that needs fixing (not the action)
+   - Use Title Case
+   
+   Examples:
+   ✅ CORRECT: "Package Return", "Refund Issue", "Account Access", "Damaged Item", "Billing Error"
+   ❌ WRONG: "Product Return Request" (too long, 3 words)
+   ❌ WRONG: "return" (lowercase, should be "Package Return")
+   ❌ WRONG: "Wanting To Return" (too long)
 
 💡 COACHING - Provide ONLY 1 coaching item:
    
@@ -820,7 +836,7 @@ Respond ONLY with valid JSON:
   "responseQuality": 1-10 or null,
   "experienceScore": 1-10,
   "customerName": "Name or null",
-  "issue": "formal description in Title Case",
+  "issue": "1-2 words in Title Case",
   "coaching": [{"type": "empathy|action|critical", "title": "2-4 words", "message": "max 160 characters"}]
 }`;
         
@@ -1074,15 +1090,28 @@ function updateCustomerInfo(analysis) {
 
 function updateCustomerIssue(issue) {
     const elem = document.getElementById('customer-issue');
-    if (elem) {
-        // Convert to Title Case for formal display
-        const titleCase = issue
-            .toLowerCase()
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-        elem.textContent = titleCase;
+    if (!elem) return;
+    
+    // Lock issue once determined (don't change throughout chat)
+    if (customerIssueFixed) {
+        console.log('[AGENT] Issue already locked, not updating');
+        return;
     }
+    
+    // Limit to 1-2 words max
+    const words = issue.trim().split(/\s+/);
+    const truncated = words.slice(0, 2).join(' ');
+    
+    // Convert to Title Case for formal display
+    const titleCase = truncated
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    
+    elem.textContent = titleCase;
+    customerIssueFixed = true; // Lock it
+    console.log('[AGENT] Issue set and locked:', titleCase);
 }
 
 function updateSentiment(emotionScore) {
