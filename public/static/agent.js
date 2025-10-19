@@ -1213,27 +1213,18 @@ function updateCoaching(coachingItems) {
         const phrase = item.phrase || '';
         
         card.innerHTML = `
-            <div class="flex items-center gap-2 mb-3">
-                <i class="fas ${icon} ${iconColor} text-lg"></i>
-                <div class="text-base font-bold text-gray-100">${item.title}</div>
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fas ${icon} ${iconColor} text-sm"></i>
+                <div class="text-sm font-bold text-gray-100">${item.title}</div>
             </div>
             
-            ${context ? `<p class="text-sm text-gray-300 mb-2 leading-relaxed">${context}</p>` : ''}
-            ${guidance ? `<p class="text-sm text-gray-300 mb-3 leading-relaxed">${guidance}</p>` : ''}
+            ${context ? `<p class="text-xs text-gray-300 mb-2 leading-relaxed">${context}</p>` : ''}
+            ${guidance ? `<p class="text-xs text-gray-300 mb-2 leading-relaxed">${guidance}</p>` : ''}
             
             ${phrase ? `
-                <div class="bg-slate-800/50 border-l-4 border-blue-400 p-3 mb-3 rounded">
-                    <p class="text-sm text-gray-200 italic leading-relaxed">"${phrase}"</p>
+                <div class="bg-slate-800/50 border-l-4 border-blue-400 p-2 rounded">
+                    <p class="text-xs text-gray-200 italic leading-relaxed">"${phrase}"</p>
                 </div>
-            ` : ''}
-            
-            ${phrase ? `
-                <button 
-                    onclick="navigator.clipboard.writeText('${phrase.replace(/'/g, "\\'")}'); this.innerHTML='<i class=\\'fas fa-check\\'></i> Copied!'; setTimeout(() => this.innerHTML='<i class=\\'fas fa-copy\\'></i> Use This Phrase', 2000)"
-                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2 text-sm">
-                    <i class="fas fa-copy"></i>
-                    Use This Phrase
-                </button>
             ` : ''}
         `;
         
@@ -2116,24 +2107,32 @@ function drawAgentSpectrum() {
     
     agentAnalyser.getByteFrequencyData(dataArray);
     
-    // Clear canvas
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+    // Clear canvas with modern dark blue gradient background
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bgGradient.addColorStop(0, 'rgba(15, 23, 42, 0.5)'); // dark blue-gray
+    bgGradient.addColorStop(1, 'rgba(30, 58, 138, 0.2)'); // blue-900 transparent
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw bars
+    // Draw bars with modern blue gradient
     const barWidth = canvas.width / bufferLength * 2.5;
     let x = 0;
     
     for (let i = 0; i < bufferLength; i++) {
         const barHeight = (dataArray[i] / 255) * canvas.height;
         
-        // Purple gradient for agent
+        // Modern blue gradient (cyan to blue)
         const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
-        gradient.addColorStop(0, '#8b5cf6');
-        gradient.addColorStop(1, '#a78bfa');
+        gradient.addColorStop(0, '#06b6d4'); // cyan-500
+        gradient.addColorStop(0.5, '#3b82f6'); // blue-500
+        gradient.addColorStop(1, '#2563eb'); // blue-600
         
         ctx.fillStyle = gradient;
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        
+        // Rounded bars for modern look
+        ctx.beginPath();
+        ctx.roundRect(x, canvas.height - barHeight, barWidth - 1, barHeight, [2, 2, 0, 0]);
+        ctx.fill();
         
         x += barWidth + 1;
     }
