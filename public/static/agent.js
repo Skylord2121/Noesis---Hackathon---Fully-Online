@@ -734,7 +734,7 @@ function processAIAnalysis(analysis) {
 async function getConversationAnalysis() {
     try {
         const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
-        const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
+        const model = localStorage.getItem('ollama-model') || 'qwen2.5:8b';
         
         console.log('[AI] 🤖 Analyzing full conversation with 3-metric system');
         
@@ -917,7 +917,7 @@ async function getAIAnalysis(text, voiceMetrics = null) {
         // Call Ollama DIRECTLY from browser (not through backend)
         // This works because user runs: $env:OLLAMA_ORIGINS="*"; ollama serve
         const ollamaUrl = localStorage.getItem('ollama-host') || 'http://localhost:11434';
-        const model = localStorage.getItem('ollama-model') || 'qwen2.5:3b';
+        const model = localStorage.getItem('ollama-model') || 'qwen2.5:8b';
         
         console.log('[AI] 🤖 Calling Ollama DIRECTLY from browser');
         console.log('[AI] URL:', ollamaUrl);
