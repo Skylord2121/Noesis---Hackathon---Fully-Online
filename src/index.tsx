@@ -51,8 +51,10 @@ import companyKnowledge from '../config/company-knowledge.json'
 
 // Ollama AI Analysis Endpoint (ONLY SOURCE - No fallback)
 app.post('/api/ai-analysis', async (c) => {
+  // Parse request body FIRST, outside try/catch so it's accessible in fallback
+  const { text, conversationHistory, voiceMetrics } = await c.req.json()
+  
   try {
-    const { text, conversationHistory, voiceMetrics } = await c.req.json()
     
     console.log('=================================================')
     console.log('[AI ANALYSIS] NEW REQUEST')
@@ -205,7 +207,8 @@ Respond ONLY with valid JSON (no markdown, no explanation):
     
     // EMERGENCY FALLBACK - Basic rule-based analysis when Ollama is down
     // This is NOT AI - just simple keyword matching to keep system functional
-    const lowerText = text.toLowerCase()
+    // text variable is now accessible since it was parsed outside try/catch
+    const lowerText = (text || '').toLowerCase()
     
     // Detect customer name
     const nameMatch = text.match(/(?:my name is|i'm|this is|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i)
