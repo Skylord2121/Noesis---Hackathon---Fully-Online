@@ -337,7 +337,12 @@ Respond ONLY with valid JSON (no markdown, no explanation):
         'great job', 'excellent service', 'amazing', 'wonderful experience',
         'very happy', 'very satisfied', 'so helpful', 'really appreciate',
         'love it', 'fantastic', 'awesome', 'brilliant', 'outstanding',
-        'impressed', 'superb', 'exceeded', 'better than expected'
+        'impressed', 'superb', 'exceeded', 'better than expected',
+        'great customer service', 'been a great', 'great experience',
+        'really good', 'very good', 'so glad', 'thank you so much',
+        'appreciate it', 'appreciate your', 'you\'re amazing', 'you\'re great',
+        'helpful', 'really helped', 'you helped', 'perfect', 'exactly what',
+        'couldn\'t be better', 'very pleased', 'much better', 'way better'
       ]
       
       // Transactional/polite phrases (NOT indicators of happiness)
@@ -407,8 +412,24 @@ Respond ONLY with valid JSON (no markdown, no explanation):
         predictedCSAT = 5.0
       }
       
+      // Check for verification phrase from agent
+      const verificationDetected = lowerText.includes('you\'ve been verified') || 
+                                   lowerText.includes('you have been verified') ||
+                                   lowerText.includes('you are verified') ||
+                                   lowerText.includes('you\'re verified')
+      
       // Generate contextual coaching
       const coaching = []
+      
+      // Verification notification
+      if (verificationDetected) {
+        coaching.push({
+          type: 'verification',
+          title: '✓ Customer Verified',
+          message: 'Customer verification completed. Update customer status to "Verified".',
+          action: 'verify-customer'
+        })
+      }
       
       // Empathy coaching based on stress and sentiment
       if (negativeScore === 3) {
@@ -473,6 +494,7 @@ Respond ONLY with valid JSON (no markdown, no explanation):
       }
     }
 
+    console.log(`[AI ANALYSIS] Final source: ${aiSource}`)
     return c.json({ success: true, analysis, aiSource })
     
   } catch (error) {
@@ -728,6 +750,134 @@ app.post('/api/session/message', async (c) => {
   }
 })
 
+// Voice metrics storage (for real-time spectrum visualization)
+const sessionVoiceMetrics = new Map<string, any>()
+
+// Session status and verification tracking
+const sessionStatus = new Map<string, {
+  status: 'active' | 'on-hold' | 'ended',
+  isVerified: boolean,
+  verifiedAt?: number
+}>()
+
+// Store voice metrics update
+app.post('/api/session/voice-metrics', async (c) => {
+  try {
+    const { sessionId, voiceMetrics } = await c.req.json()
+    
+    if (!sessionId || !voiceMetrics) {
+      return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+    
+    // Store latest voice metrics for this session
+    sessionVoiceMetrics.set(sessionId, {
+      ...voiceMetrics,
+      timestamp: Date.now()
+    })
+    
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Get latest voice metrics for session
+app.get('/api/session/voice-metrics', async (c) => {
+  try {
+    const sessionId = c.req.query('sessionId')
+    
+    if (!sessionId) {
+      return c.json({ success: false, error: 'Session ID required' }, 400)
+    }
+    
+    const metrics = sessionVoiceMetrics.get(sessionId)
+    
+    // Clear old metrics (older than 2 seconds)
+    if (metrics && Date.now() - metrics.timestamp > 2000) {
+      sessionVoiceMetrics.delete(sessionId)
+      return c.json({ success: true, metrics: null })
+    }
+    
+    return c.json({ success: true, metrics })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Get session status and verification
+app.get('/api/session/status', async (c) => {
+  try {
+    const sessionId = c.req.query('sessionId')
+    
+    if (!sessionId) {
+      return c.json({ success: false, error: 'Session ID required' }, 400)
+    }
+    
+    // Initialize status if not exists
+    if (!sessionStatus.has(sessionId)) {
+      sessionStatus.set(sessionId, { status: 'active', isVerified: false })
+    }
+    
+    const status = sessionStatus.get(sessionId)
+    return c.json({ success: true, status })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Update session status (active/on-hold/ended)
+app.post('/api/session/status', async (c) => {
+  try {
+    const { sessionId, status: newStatus } = await c.req.json()
+    
+    if (!sessionId || !newStatus) {
+      return c.json({ success: false, error: 'Session ID and status required' }, 400)
+    }
+    
+    if (!['active', 'on-hold', 'ended'].includes(newStatus)) {
+      return c.json({ success: false, error: 'Invalid status' }, 400)
+    }
+    
+    // Get or create status
+    const currentStatus = sessionStatus.get(sessionId) || { status: 'active', isVerified: false }
+    currentStatus.status = newStatus
+    sessionStatus.set(sessionId, currentStatus)
+    
+    console.log(`[SESSION ${sessionId}] Status updated to: ${newStatus}`)
+    
+    return c.json({ success: true, status: currentStatus })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+// Update verification status
+app.post('/api/session/verify', async (c) => {
+  try {
+    const { sessionId, isVerified } = await c.req.json()
+    
+    if (!sessionId || isVerified === undefined) {
+      return c.json({ success: false, error: 'Session ID and isVerified required' }, 400)
+    }
+    
+    // Get or create status
+    const currentStatus = sessionStatus.get(sessionId) || { status: 'active', isVerified: false }
+    currentStatus.isVerified = isVerified
+    if (isVerified) {
+      currentStatus.verifiedAt = Date.now()
+    } else {
+      delete currentStatus.verifiedAt
+    }
+    sessionStatus.set(sessionId, currentStatus)
+    
+    console.log(`[SESSION ${sessionId}] Verification updated to: ${isVerified}`)
+    
+    return c.json({ success: true, status: currentStatus })
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
 // Get messages from session
 app.get('/api/session/messages', async (c) => {
   try {
@@ -782,6 +932,107 @@ app.post('/api/company-knowledge', async (c) => {
         '5. AI will automatically use the updated knowledge in coaching'
       ],
       currentFile: '/home/user/webapp/config/company-knowledge.json'
+    })
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error.message 
+    }, 500)
+  }
+})
+
+// Add new document to company knowledge
+app.post('/api/company-knowledge/add', async (c) => {
+  try {
+    const { key, document } = await c.req.json()
+    
+    if (!key || !document || !document.title || !document.content) {
+      return c.json({ 
+        success: false, 
+        error: 'Key, title, and content are required' 
+      }, 400)
+    }
+    
+    // Add to in-memory knowledge (runtime only - not persisted)
+    companyKnowledge.documents[key] = document
+    companyKnowledge.lastUpdated = new Date().toISOString()
+    
+    return c.json({
+      success: true,
+      message: 'Document added successfully (session only)',
+      note: 'This change is temporary. To persist, edit config/company-knowledge.json'
+    })
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error.message 
+    }, 500)
+  }
+})
+
+// Update existing document
+app.post('/api/company-knowledge/update', async (c) => {
+  try {
+    const { key, document } = await c.req.json()
+    
+    if (!key || !document) {
+      return c.json({ 
+        success: false, 
+        error: 'Key and document are required' 
+      }, 400)
+    }
+    
+    if (!companyKnowledge.documents[key]) {
+      return c.json({ 
+        success: false, 
+        error: 'Document not found' 
+      }, 404)
+    }
+    
+    // Update in-memory knowledge (runtime only - not persisted)
+    companyKnowledge.documents[key] = document
+    companyKnowledge.lastUpdated = new Date().toISOString()
+    
+    return c.json({
+      success: true,
+      message: 'Document updated successfully (session only)',
+      note: 'This change is temporary. To persist, edit config/company-knowledge.json'
+    })
+  } catch (error) {
+    return c.json({ 
+      success: false, 
+      error: error.message 
+    }, 500)
+  }
+})
+
+// Delete document
+app.post('/api/company-knowledge/delete', async (c) => {
+  try {
+    const { key } = await c.req.json()
+    
+    if (!key) {
+      return c.json({ 
+        success: false, 
+        error: 'Key is required' 
+      }, 400)
+    }
+    
+    if (!companyKnowledge.documents[key]) {
+      return c.json({ 
+        success: false, 
+        error: 'Document not found' 
+      }, 404)
+    }
+    
+    // Delete from in-memory knowledge (runtime only - not persisted)
+    delete companyKnowledge.documents[key]
+    companyKnowledge.lastUpdated = new Date().toISOString()
+    
+    return c.json({
+      success: true,
+      message: 'Document deleted successfully (session only)',
+      note: 'This change is temporary. To persist, edit config/company-knowledge.json'
     })
   } catch (error) {
     return c.json({ 

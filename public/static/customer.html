@@ -546,6 +546,8 @@
         }
         
         // Analyze audio in real-time
+        let lastVoiceMetricsSent = 0;
+        
         function analyzeAudio() {
             if (!analyser || !audioDataArray) return;
             
@@ -600,6 +602,12 @@
                 if (speechSegments.length > 3) {
                     const avgGap = speechSegments.reduce((a, b) => a + b, 0) / speechSegments.length;
                     voiceMetrics.speechRate = Math.round(1000 / avgGap); // Words per second estimate
+                }
+                
+                // Send voice metrics to agent dashboard in real-time (every 500ms when speaking)
+                if (now - lastVoiceMetricsSent > 500) {
+                    sendVoiceMetricsUpdate();
+                    lastVoiceMetricsSent = now;
                 }
             }
             
@@ -716,6 +724,31 @@
                 `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
+        // Send voice metrics updates to agent (for real-time spectrum visualization)
+        async function sendVoiceMetricsUpdate() {
+            if (!sessionId || !voiceMetrics || voiceMetrics.volume < 15) return;
+            
+            try {
+                await fetch('/api/session/voice-metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId,
+                        voiceMetrics: {
+                            volume: voiceMetrics.volume,
+                            pitch: voiceMetrics.pitch,
+                            speechRate: voiceMetrics.speechRate,
+                            energy: voiceMetrics.energy,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+            } catch (error) {
+                // Silent fail - not critical
+                console.log('[CUSTOMER] Voice metrics update failed (non-critical)');
+            }
+        }
+        
         async function sendMessage(role, content) {
             try {
                 console.log(`[CUSTOMER] Sending message - Role: ${role}, Content: "${content.substring(0, 50)}..."`);

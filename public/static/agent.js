@@ -5,6 +5,7 @@
 let currentSessionId = null;
 let customerLink = null;
 let pollInterval = null;
+let voiceMetricsInterval = null;
 let lastMessageTimestamp = 0;
 
 // State management
@@ -159,10 +160,16 @@ function startPolling() {
         clearInterval(pollInterval);
     }
     
-    console.log('[AGENT] Setting up new poll interval (1 second)');
+    console.log('[AGENT] Setting up new poll interval (1 second for messages, continuous for voice)');
     pollInterval = setInterval(async () => {
         await fetchNewMessages();
+        await fetchSessionStatus(); // Poll for call status and verification
     }, 1000); // Poll every second
+    
+    // SEPARATE interval for voice metrics - poll more frequently (500ms)
+    voiceMetricsInterval = setInterval(async () => {
+        await fetchVoiceMetrics(); // Poll for real-time voice metrics
+    }, 500); // Poll every 500ms for smoother spectrum animation
     
     // Immediate first fetch
     console.log('[AGENT] Doing immediate first fetch');
@@ -173,6 +180,10 @@ function stopPolling() {
     if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
+    }
+    if (voiceMetricsInterval) {
+        clearInterval(voiceMetricsInterval);
+        voiceMetricsInterval = null;
     }
 }
 
@@ -222,17 +233,72 @@ async function fetchNewMessages() {
     }
 }
 
+// Fetch session status and verification (real-time)
+async function fetchSessionStatus() {
+    if (!currentSessionId) return;
+    
+    try {
+        const response = await fetch(`/api/session/status?sessionId=${currentSessionId}`);
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            // Update call status UI
+            const statusElem = document.getElementById('call-status');
+            if (statusElem && data.status.status) {
+                const statusColors = {
+                    'active': { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
+                    'on-hold': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+                    'ended': { bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' }
+                };
+                const colors = statusColors[data.status.status] || statusColors['active'];
+                statusElem.innerHTML = `<span class="text-xs px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}">${data.status.status.replace('-', ' ').toUpperCase()}</span>`;
+            }
+            
+            // Update verification UI
+            const verifyElem = document.getElementById('customer-verification-status');
+            if (verifyElem) {
+                if (data.status.isVerified) {
+                    verifyElem.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">Verified</span>';
+                } else {
+                    verifyElem.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30">Unverified</span>';
+                }
+            }
+        }
+    } catch (error) {
+        // Silent fail - not critical
+    }
+}
+
+// Fetch real-time voice metrics for spectrum visualization
+async function fetchVoiceMetrics() {
+    if (!currentSessionId) return;
+    
+    try {
+        const response = await fetch(`/api/session/voice-metrics?sessionId=${currentSessionId}`);
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        if (data.metrics && data.metrics.volume > 0) {
+            // Update spectrum bars with real-time voice data
+            animateCustomerSpectrumWithMetrics(data.metrics);
+        }
+    } catch (error) {
+        // Silent fail - not critical
+    }
+}
+
 // Handle incoming customer message with voice metrics
 async function handleCustomerMessage(text, voiceMetrics = null) {
     console.log('[AGENT] handleCustomerMessage called');
     console.log('[AGENT] Customer said:', text);
     console.log('[AGENT] Voice metrics:', voiceMetrics);
     
-    // Add to transcript
-    console.log('[AGENT] Adding to transcript...');
-    addTranscriptMessage('customer', text);
-    
-    // Add to conversation history with voice data
+    // Add to conversation history with voice data (before transcript for AI analysis)
     conversationHistory.push({
         role: 'customer',
         content: text,
@@ -249,8 +315,22 @@ async function handleCustomerMessage(text, voiceMetrics = null) {
         animateCustomerSpectrum();
     }
     
-    // Process with AI for coaching and metrics (async)
-    processWithAI(text, voiceMetrics);
+    // Get AI analysis first to obtain emotion score
+    let emotionScore = null;
+    try {
+        const analysis = await getAIAnalysis(text, voiceMetrics);
+        if (analysis && analysis.empathy !== undefined) {
+            emotionScore = analysis.empathy;
+            // Process all other metrics
+            processAIAnalysis(analysis);
+        }
+    } catch (error) {
+        console.error('[AGENT] Error getting AI analysis:', error);
+    }
+    
+    // Add to transcript WITH emotion score
+    console.log('[AGENT] Adding to transcript with emotion score:', emotionScore);
+    addTranscriptMessage('customer', text, emotionScore);
 }
 
 // Animate customer voice spectrum with real voice metrics
@@ -527,8 +607,8 @@ function stopAgentSpeaking() {
 }
 
 // Add message to transcript
-function addTranscriptMessage(role, text) {
-    console.log('[AGENT] addTranscriptMessage called - Role:', role, 'Text:', text);
+function addTranscriptMessage(role, text, emotionScore = null) {
+    console.log('[AGENT] addTranscriptMessage called - Role:', role, 'Text:', text, 'Emotion:', emotionScore);
     
     const transcriptMessages = document.getElementById('transcript-messages');
     if (!transcriptMessages) {
@@ -549,10 +629,18 @@ function addTranscriptMessage(role, text) {
     const label = isCustomer ? 'Customer' : 'Agent';
     const textColor = isCustomer ? 'text-yellow-300' : 'text-blue-300';
     
+    // Emotion score badge for customer messages (tiny, top-right)
+    const emotionBadge = (isCustomer && emotionScore !== null) 
+        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 font-semibold tabular-nums">${emotionScore.toFixed(1)}</span>`
+        : '';
+    
     messageDiv.innerHTML = `
         ${avatar}
         <div class="flex-1 min-w-0">
-            <div class="text-xs ${textColor} font-semibold mb-1">${label}</div>
+            <div class="flex items-center justify-between gap-2 mb-1">
+                <div class="text-xs ${textColor} font-semibold">${label}</div>
+                ${emotionBadge}
+            </div>
             <div class="text-sm text-gray-300 leading-relaxed">${text}</div>
         </div>
     `;
@@ -590,54 +678,45 @@ function updateModeIndicator(mode) {
     }
 }
 
-// Process with AI (coaching and metrics)
-async function processWithAI(text, voiceMetrics = null) {
-    if (!ollamaConnected) return;
+// Process AI analysis results and update UI
+function processAIAnalysis(analysis) {
+    if (!analysis) return;
     
-    try {
-        // Get AI analysis with voice metrics
-        const analysis = await getAIAnalysis(text, voiceMetrics);
-        
-        if (analysis) {
-            // Update metrics
-            if (analysis.sentiment !== undefined) {
-                updateSentimentUI(analysis.sentiment);
-            }
-            if (analysis.empathy !== undefined) {
-                updateEmpathyScore(analysis.empathy);
-            }
-            if (analysis.quality !== undefined) {
-                updateQualityScore(analysis.quality);
-            }
-            if (analysis.stress) {
-                updateStressLevel(analysis.stress);
-            }
-            if (analysis.clarity) {
-                updateClarity(analysis.clarity);
-            }
-            if (analysis.predictedCSAT !== undefined) {
-                updatePredictedCSAT(analysis.predictedCSAT);
-            }
-            
-            // Update customer info - lock name once detected
-            if (analysis.customerName && !customerNameFixed && analysis.customerName !== 'Unknown') {
-                console.log('[AGENT] Customer name detected:', analysis.customerName);
-                updateCustomerInfo(analysis);
-                customerNameFixed = true;
-            }
-            
-            // Update issue - allow it to update as conversation evolves (don't lock it)
-            if (analysis.issue) {
-                updateCustomerIssue(analysis.issue);
-            }
-            
-            // Generate coaching
-            if (analysis.coaching && analysis.coaching.length > 0) {
-                updateCoaching(analysis.coaching);
-            }
-        }
-    } catch (error) {
-        console.error('Error processing with AI:', error);
+    // Update metrics
+    if (analysis.sentiment !== undefined) {
+        updateSentimentUI(analysis.sentiment);
+    }
+    if (analysis.empathy !== undefined) {
+        updateEmpathyScore(analysis.empathy);
+    }
+    if (analysis.quality !== undefined) {
+        updateQualityScore(analysis.quality);
+    }
+    if (analysis.stress) {
+        updateStressLevel(analysis.stress);
+    }
+    if (analysis.clarity) {
+        updateClarity(analysis.clarity);
+    }
+    if (analysis.predictedCSAT !== undefined) {
+        updatePredictedCSAT(analysis.predictedCSAT);
+    }
+    
+    // Update customer info - lock name once detected
+    if (analysis.customerName && !customerNameFixed && analysis.customerName !== 'Unknown') {
+        console.log('[AGENT] Customer name detected:', analysis.customerName);
+        updateCustomerInfo(analysis);
+        customerNameFixed = true;
+    }
+    
+    // Update issue - allow it to update as conversation evolves (don't lock it)
+    if (analysis.issue) {
+        updateCustomerIssue(analysis.issue);
+    }
+    
+    // Generate coaching
+    if (analysis.coaching && analysis.coaching.length > 0) {
+        updateCoaching(analysis.coaching);
     }
 }
 
@@ -666,6 +745,16 @@ async function getAIAnalysis(text, voiceMetrics = null) {
         
         if (data.success && data.analysis) {
             const parsed = data.analysis;
+            
+            // Log AI source for debugging
+            console.log(`[AI] Analysis from: ${data.aiSource || 'unknown'}`);
+            if (data.aiSource === 'ollama') {
+                console.log('[AI] ✓ Ollama is working!');
+            } else if (data.aiSource === 'cloudflare') {
+                console.log('[AI] Using Cloudflare AI (Ollama not available)');
+            } else {
+                console.log('[AI] Using fallback rules (AI unavailable)');
+            }
             
             // Post-process: don't lock name/issue on first message if not confident
             if (conversationHistory.length <= 2) {
@@ -766,6 +855,11 @@ function updateCoaching(coachingItems) {
     container.innerHTML = '';
     
     for (const item of coachingItems) {
+        // Handle verification action
+        if (item.action === 'verify-customer') {
+            updateVerificationStatus(true);
+        }
+        
         const card = document.createElement('div');
         card.className = 'coaching-card glass-panel p-4 border border-slate-700/30 mb-3';
         
@@ -776,11 +870,17 @@ function updateCoaching(coachingItems) {
             borderColor = 'border-green-500/30';
             bgColor = 'bg-green-500/5';
         } else if (item.type === 'empathy') {
-            borderColor = 'border-purple-500/30';
-            bgColor = 'bg-purple-500/5';
+            borderColor = 'border-blue-500/30';
+            bgColor = 'bg-blue-500/5';
         } else if (item.type === 'knowledge') {
             borderColor = 'border-yellow-500/30';
             bgColor = 'bg-yellow-500/5';
+        } else if (item.type === 'verification') {
+            borderColor = 'border-green-500/30';
+            bgColor = 'bg-green-500/5';
+        } else if (item.type === 'critical') {
+            borderColor = 'border-red-500/30';
+            bgColor = 'bg-red-500/5';
         }
         
         card.className += ` ${borderColor} ${bgColor}`;
@@ -791,6 +891,62 @@ function updateCoaching(coachingItems) {
         `;
         
         container.appendChild(card);
+    }
+}
+
+// Update verification status
+async function updateVerificationStatus(isVerified) {
+    if (!currentSessionId) return;
+    
+    try {
+        await fetch('/api/session/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: currentSessionId, isVerified })
+        });
+        
+        // Update UI
+        const statusElem = document.getElementById('customer-verification-status');
+        if (statusElem) {
+            if (isVerified) {
+                statusElem.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">Verified</span>';
+            } else {
+                statusElem.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30">Unverified</span>';
+            }
+        }
+        
+        console.log(`[AGENT] Customer verification status: ${isVerified ? 'Verified' : 'Unverified'}`);
+    } catch (error) {
+        console.error('Error updating verification status:', error);
+    }
+}
+
+// Update call status (Active/On Hold/Ended)
+async function updateCallStatus(status) {
+    if (!currentSessionId) return;
+    
+    try {
+        await fetch('/api/session/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: currentSessionId, status })
+        });
+        
+        // Update UI
+        const statusElem = document.getElementById('call-status');
+        if (statusElem) {
+            const statusColors = {
+                'active': { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
+                'on-hold': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+                'ended': { bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' }
+            };
+            const colors = statusColors[status] || statusColors['active'];
+            statusElem.innerHTML = `<span class="text-xs px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}">${status.replace('-', ' ').toUpperCase()}</span>`;
+        }
+        
+        console.log(`[AGENT] Call status: ${status}`);
+    } catch (error) {
+        console.error('Error updating call status:', error);
     }
 }
 
@@ -813,7 +969,11 @@ function showToast(message, type = 'info') {
 // Settings functions
 function openSettings() {
     const modal = document.getElementById('settings-modal');
-    if (modal) modal.classList.remove('hidden');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Auto-test Ollama connection when settings open
+        testOllamaConnection();
+    }
 }
 
 function closeSettings() {
@@ -824,6 +984,130 @@ function closeSettings() {
 function saveSettings() {
     showToast('Settings saved!', 'success');
     closeSettings();
+}
+
+// Test Ollama Connection (Direct from Browser - bypasses CORS with mode: 'no-cors')
+async function testOllamaConnection() {
+    const statusIcon = document.getElementById('ollama-status-icon');
+    const statusText = document.getElementById('ollama-status-text');
+    const latencyDisplay = document.getElementById('ollama-latency');
+    const testBtn = document.getElementById('test-ollama-btn');
+    
+    if (!statusIcon || !statusText || !latencyDisplay || !testBtn) return;
+    
+    // Show testing state
+    statusIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin text-yellow-400"></i>';
+    statusText.textContent = 'Testing...';
+    statusText.className = 'text-xs font-semibold text-yellow-300';
+    testBtn.disabled = true;
+    
+    const startTime = Date.now();
+    
+    try {
+        // FIRST: Try direct connection from browser to localhost:11434
+        // This tests YOUR local machine, not the sandbox server
+        try {
+            const response = await fetch('http://localhost:11434/api/tags', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const latency = Date.now() - startTime;
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Success state
+                statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-400"></i>';
+                statusText.textContent = 'Connected ✓';
+                statusText.className = 'text-xs font-semibold text-green-300';
+                latencyDisplay.textContent = `${latency}ms`;
+                
+                // Update model info if available
+                if (data.models && data.models.length > 0) {
+                    const ollamaModel = document.getElementById('ollama-model');
+                    const modelName = data.models.find(m => m.name && m.name.includes('qwen2.5:3b'))?.name 
+                                  || data.models[0]?.name 
+                                  || 'qwen2.5:3b';
+                    if (ollamaModel) {
+                        ollamaModel.textContent = modelName;
+                    }
+                    console.log('[OLLAMA TEST] ✓ Direct Success - Models:', data.models.map(m => m.name).join(', '));
+                } else {
+                    console.log('[OLLAMA TEST] ✓ Connected but no models installed');
+                }
+                return; // Success - exit function
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (directError) {
+            // Direct connection failed - this might be CORS blocking or Ollama not running
+            console.log('[OLLAMA TEST] Direct connection blocked or failed:', directError.message);
+            
+            // FALLBACK: Try via backend proxy (for production deployment)
+            try {
+                const response = await fetch('/api/ollama/tags');
+                const latency = Date.now() - startTime;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Check if there's an error in the response
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Success state via proxy
+                    statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-400"></i>';
+                    statusText.textContent = 'Connected ✓ (proxy)';
+                    statusText.className = 'text-xs font-semibold text-green-300';
+                    latencyDisplay.textContent = `${latency}ms`;
+                    
+                    if (data.models && data.models.length > 0) {
+                        const ollamaModel = document.getElementById('ollama-model');
+                        const modelName = data.models.find(m => m.name && m.name.includes('qwen2.5:3b'))?.name 
+                                      || data.models[0]?.name 
+                                      || 'qwen2.5:3b';
+                        if (ollamaModel) {
+                            ollamaModel.textContent = modelName;
+                        }
+                        console.log('[OLLAMA TEST] ✓ Proxy Success - Models:', data.models.length);
+                    }
+                    return; // Success via proxy
+                } else {
+                    throw new Error(`Proxy HTTP ${response.status}`);
+                }
+            } catch (proxyError) {
+                // Both direct and proxy failed
+                throw new Error('Not Running - Start with: ollama serve');
+            }
+        }
+    } catch (error) {
+        // Failure state
+        statusIcon.innerHTML = '<i class="fas fa-times-circle text-red-400"></i>';
+        
+        // Provide user-friendly error messages
+        let errorMsg = 'Not Running';
+        if (error.message.includes('Failed to fetch')) {
+            errorMsg = 'Not Running';
+        } else if (error.message.includes('NetworkError')) {
+            errorMsg = 'Not Running';
+        } else if (error.message.includes('ECONNREFUSED')) {
+            errorMsg = 'Not Started';
+        } else if (error.message.includes('HTTP')) {
+            errorMsg = error.message;
+        } else {
+            errorMsg = 'Not Running';
+        }
+        
+        statusText.textContent = `✗ ${errorMsg}`;
+        statusText.className = 'text-xs font-semibold text-red-300';
+        latencyDisplay.textContent = '--';
+        
+        console.error('[OLLAMA TEST] ✗ Failed:', error.message);
+    } finally {
+        testBtn.disabled = false;
+    }
 }
 
 async function testAIConnection() {
@@ -893,10 +1177,10 @@ async function viewCompanyKnowledge() {
                 .map(([key, doc]) => `
                     <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3 mb-3">
                         <div class="flex items-start justify-between mb-2">
-                            <h4 class="font-semibold text-sm text-purple-300">${doc.title}</h4>
+                            <h4 class="font-semibold text-sm text-blue-300">${doc.title}</h4>
                             <span class="text-xs text-gray-500 px-2 py-0.5 bg-slate-700/50 rounded">${doc.category}</span>
                         </div>
-                        <pre class="text-xs text-gray-400 whitespace-pre-wrap font-mono bg-slate-900/30 p-2 rounded overflow-auto max-h-32">${doc.content}</pre>
+                        <pre class="text-xs text-gray-400 whitespace-pre-wrap bg-slate-900/30 p-2 rounded overflow-auto max-h-32">${doc.content}</pre>
                     </div>
                 `).join('');
             
@@ -911,7 +1195,7 @@ async function viewCompanyKnowledge() {
             modal.innerHTML = `
                 <div class="glass-panel max-w-4xl w-full max-h-[90vh] overflow-auto">
                     <div class="sticky top-0 bg-slate-900/95 backdrop-blur-sm p-4 border-b border-slate-700/30 flex items-center justify-between">
-                        <h3 class="text-lg font-bold text-purple-400 flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-blue-400 flex items-center gap-2">
                             <i class="fas fa-book"></i>
                             Company Knowledge Base
                         </h3>
@@ -924,7 +1208,7 @@ async function viewCompanyKnowledge() {
                         <!-- Documents -->
                         <div>
                             <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
-                                <i class="fas fa-file-alt text-purple-400"></i>
+                                <i class="fas fa-file-alt text-blue-400"></i>
                                 Policy Documents (${Object.keys(knowledge.documents).length})
                             </h4>
                             ${docsHtml}
@@ -933,7 +1217,7 @@ async function viewCompanyKnowledge() {
                         <!-- Quick References -->
                         <div>
                             <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
-                                <i class="fas fa-bolt text-yellow-400"></i>
+                                <i class="fas fa-bolt text-blue-400"></i>
                                 Quick References
                             </h4>
                             <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3">
@@ -944,13 +1228,13 @@ async function viewCompanyKnowledge() {
                         <!-- Recommended Phrases -->
                         <div>
                             <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
-                                <i class="fas fa-check text-green-400"></i>
+                                <i class="fas fa-check text-blue-400"></i>
                                 Recommended Phrases
                             </h4>
                             <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3">
                                 <div class="flex flex-wrap gap-2">
                                     ${knowledge.recommended_phrases.map(phrase => 
-                                        `<span class="text-xs px-2 py-1 bg-green-500/20 text-green-300 rounded-full">${phrase}</span>`
+                                        `<span class="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full">${phrase}</span>`
                                     ).join('')}
                                 </div>
                             </div>
@@ -959,13 +1243,13 @@ async function viewCompanyKnowledge() {
                         <!-- Forbidden Phrases -->
                         <div>
                             <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
-                                <i class="fas fa-ban text-red-400"></i>
+                                <i class="fas fa-ban text-blue-400"></i>
                                 Avoid These Phrases
                             </h4>
                             <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3">
                                 <div class="flex flex-wrap gap-2">
                                     ${knowledge.forbidden_phrases.map(phrase => 
-                                        `<span class="text-xs px-2 py-1 bg-red-500/20 text-red-300 rounded-full line-through">${phrase}</span>`
+                                        `<span class="text-xs px-2 py-1 bg-slate-700/50 text-gray-400 rounded-full line-through">${phrase}</span>`
                                     ).join('')}
                                 </div>
                             </div>
@@ -978,7 +1262,7 @@ async function viewCompanyKnowledge() {
                                 <div class="flex-1">
                                     <h5 class="text-xs font-semibold text-blue-300 mb-1">How to Update</h5>
                                     <p class="text-xs text-blue-200/80">
-                                        Edit <code class="bg-slate-700/50 px-1 rounded">config/company-knowledge.json</code> and rebuild the project.
+                                        Edit <span class="bg-slate-700/50 px-1.5 py-0.5 rounded text-blue-300">config/company-knowledge.json</span> and rebuild the project.
                                     </p>
                                     <p class="text-xs text-blue-200/60 mt-1">
                                         Last updated: ${new Date(knowledge.lastUpdated).toLocaleDateString()}
@@ -1002,6 +1286,369 @@ async function viewCompanyKnowledge() {
     } catch (error) {
         console.error('Error loading company knowledge:', error);
         showToast('Error loading knowledge base', 'error');
+    }
+}
+
+// Manage Documentation - Add/Edit/Delete
+async function manageDocumentation() {
+    try {
+        const response = await fetch('/api/company-knowledge');
+        const data = await response.json();
+        
+        if (!data.success || !data.knowledge) {
+            showToast('Failed to load documentation', 'error');
+            return;
+        }
+        
+        const knowledge = data.knowledge;
+        
+        // Create management modal
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4';
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+        
+        const renderDocsList = () => {
+            return Object.entries(knowledge.documents)
+                .map(([key, doc]) => `
+                    <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3 mb-2 hover:bg-slate-800/60 transition">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-sm text-blue-300">${doc.title}</h4>
+                                <span class="text-xs text-gray-500 px-2 py-0.5 bg-slate-700/50 rounded inline-block mt-1">${doc.category}</span>
+                                <pre class="text-xs text-gray-400 whitespace-pre-wrap mt-2 max-h-20 overflow-auto">${doc.content.substring(0, 150)}${doc.content.length > 150 ? '...' : ''}</pre>
+                            </div>
+                            <div class="flex gap-1 ml-2">
+                                <button 
+                                    onclick="editDocument('${key}')" 
+                                    class="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 rounded text-xs"
+                                    title="Edit"
+                                >
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button 
+                                    onclick="deleteDocument('${key}')" 
+                                    class="px-2 py-1 bg-slate-700/40 hover:bg-slate-600/40 border border-slate-600/30 text-gray-400 rounded text-xs"
+                                    title="Delete"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+        };
+        
+        modal.innerHTML = `
+            <div class="glass-panel max-w-5xl w-full max-h-[90vh] overflow-auto">
+                <div class="sticky top-0 bg-slate-900/95 backdrop-blur-sm p-4 border-b border-slate-700/30 flex items-center justify-between z-10">
+                    <h3 class="text-lg font-bold text-blue-400 flex items-center gap-2">
+                        <i class="fas fa-edit"></i>
+                        Manage Documentation
+                    </h3>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="p-4">
+                    <!-- Add New Document Button -->
+                    <button 
+                        onclick="addNewDocument()" 
+                        class="w-full mb-4 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 border-2 border-blue-500/30 border-dashed text-blue-300 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+                    >
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Add New Document</span>
+                    </button>
+                    
+                    <!-- Documents List -->
+                    <div id="docs-list-container">
+                        ${renderDocsList()}
+                    </div>
+                    
+                    <!-- Info -->
+                    <div class="mt-4 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                        <div class="flex items-start gap-2">
+                            <i class="fas fa-robot text-blue-400 text-sm mt-0.5"></i>
+                            <div class="text-xs text-blue-300">
+                                <strong>AI Integration:</strong> All documents added here are automatically referenced by the AI during coaching analysis.
+                                The AI will suggest responses based on your company policies and procedures.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Store knowledge data globally for edit/delete functions
+        window.currentKnowledge = knowledge;
+        
+    } catch (error) {
+        console.error('Error managing documentation:', error);
+        showToast('Error loading documentation manager', 'error');
+    }
+}
+
+// Add New Document
+function addNewDocument() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4';
+    
+    modal.innerHTML = `
+        <div class="glass-panel max-w-2xl w-full">
+            <div class="p-4 border-b border-slate-700/30">
+                <h3 class="text-lg font-bold text-blue-400 flex items-center gap-2">
+                    <i class="fas fa-plus-circle"></i>
+                    Add New Document
+                </h3>
+            </div>
+            
+            <div class="p-4 space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Document Title</label>
+                    <input 
+                        type="text" 
+                        id="new-doc-title" 
+                        placeholder="e.g., Refund Policy" 
+                        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                    />
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Category</label>
+                    <select 
+                        id="new-doc-category" 
+                        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                    >
+                        <option value="policy">Policy</option>
+                        <option value="procedures">Procedures</option>
+                        <option value="technical">Technical</option>
+                        <option value="scripts">Scripts</option>
+                        <option value="billing">Billing</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Content</label>
+                    <textarea 
+                        id="new-doc-content" 
+                        rows="10" 
+                        placeholder="Enter document content here..." 
+                        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                    ></textarea>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-700/30 flex justify-end gap-2">
+                <button 
+                    onclick="this.closest('.fixed').remove()" 
+                    class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-semibold transition"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onclick="saveNewDocument()" 
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition"
+                >
+                    <i class="fas fa-save mr-1"></i>
+                    Save Document
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Save New Document
+async function saveNewDocument() {
+    const title = document.getElementById('new-doc-title').value.trim();
+    const category = document.getElementById('new-doc-category').value;
+    const content = document.getElementById('new-doc-content').value.trim();
+    
+    if (!title || !content) {
+        showToast('Title and content are required', 'error');
+        return;
+    }
+    
+    const docKey = title.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    
+    try {
+        const response = await fetch('/api/company-knowledge/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: docKey,
+                document: { title, category, content }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Document added successfully!', 'success');
+            
+            // Close add modal
+            document.querySelectorAll('.fixed.z-\\[70\\]').forEach(m => m.remove());
+            
+            // Refresh management modal
+            document.querySelectorAll('.fixed.z-\\[60\\]').forEach(m => m.remove());
+            manageDocumentation();
+        } else {
+            showToast(data.error || 'Failed to add document', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving document:', error);
+        showToast('Error saving document', 'error');
+    }
+}
+
+// Edit Document
+function editDocument(key) {
+    const doc = window.currentKnowledge.documents[key];
+    if (!doc) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4';
+    
+    modal.innerHTML = `
+        <div class="glass-panel max-w-2xl w-full">
+            <div class="p-4 border-b border-slate-700/30">
+                <h3 class="text-lg font-bold text-blue-400 flex items-center gap-2">
+                    <i class="fas fa-edit"></i>
+                    Edit Document
+                </h3>
+            </div>
+            
+            <div class="p-4 space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Document Title</label>
+                    <input 
+                        type="text" 
+                        id="edit-doc-title" 
+                        value="${doc.title}" 
+                        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                    />
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Category</label>
+                    <select 
+                        id="edit-doc-category" 
+                        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                    >
+                        <option value="policy" ${doc.category === 'policy' ? 'selected' : ''}>Policy</option>
+                        <option value="procedures" ${doc.category === 'procedures' ? 'selected' : ''}>Procedures</option>
+                        <option value="technical" ${doc.category === 'technical' ? 'selected' : ''}>Technical</option>
+                        <option value="scripts" ${doc.category === 'scripts' ? 'selected' : ''}>Scripts</option>
+                        <option value="billing" ${doc.category === 'billing' ? 'selected' : ''}>Billing</option>
+                        <option value="other" ${doc.category === 'other' ? 'selected' : ''}>Other</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Content</label>
+                    <textarea 
+                        id="edit-doc-content" 
+                        rows="10" 
+                        class="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                    >${doc.content}</textarea>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-700/30 flex justify-end gap-2">
+                <button 
+                    onclick="this.closest('.fixed').remove()" 
+                    class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-semibold transition"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onclick="updateDocument('${key}')" 
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition"
+                >
+                    <i class="fas fa-save mr-1"></i>
+                    Update Document
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Update Document
+async function updateDocument(key) {
+    const title = document.getElementById('edit-doc-title').value.trim();
+    const category = document.getElementById('edit-doc-category').value;
+    const content = document.getElementById('edit-doc-content').value.trim();
+    
+    if (!title || !content) {
+        showToast('Title and content are required', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/company-knowledge/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key,
+                document: { title, category, content }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Document updated successfully!', 'success');
+            
+            // Close edit modal
+            document.querySelectorAll('.fixed.z-\\[70\\]').forEach(m => m.remove());
+            
+            // Refresh management modal
+            document.querySelectorAll('.fixed.z-\\[60\\]').forEach(m => m.remove());
+            manageDocumentation();
+        } else {
+            showToast(data.error || 'Failed to update document', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating document:', error);
+        showToast('Error updating document', 'error');
+    }
+}
+
+// Delete Document
+async function deleteDocument(key) {
+    if (!confirm('Are you sure you want to delete this document? This cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/company-knowledge/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Document deleted successfully!', 'success');
+            
+            // Refresh management modal
+            document.querySelectorAll('.fixed.z-\\[60\\]').forEach(m => m.remove());
+            manageDocumentation();
+        } else {
+            showToast(data.error || 'Failed to delete document', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting document:', error);
+        showToast('Error deleting document', 'error');
     }
 }
 
