@@ -678,6 +678,7 @@ function processAIAnalysis(analysis) {
     // NEW 3-METRIC SYSTEM
     if (analysis.emotionScore !== undefined) {
         updateEmotionScore(analysis.emotionScore);
+        updateSentiment(analysis.emotionScore);
     }
     if (analysis.responseQuality !== undefined) {
         updateResponseQuality(analysis.responseQuality);
@@ -755,9 +756,19 @@ ${conversationContext}
 - Agent MIRRORING: Does agent match customer tone? Acknowledge frustration?
 - TRAJECTORY: Is the call getting better or worse?
 
-📋 Extract customer name and issue type.
+📋 Extract customer name and issue type (2 WORDS MAX for issue).
 
-💡 COACHING: Give 1-2 ultra-short nudges (3-5 words) based on current state.
+💡 COACHING: Provide 2-3 actionable coaching tips based on:
+   - Current emotion/sentiment state
+   - Agent's response quality (empathy, acknowledgment, solution-focus)
+   - Next best action to improve experience
+   - Specific phrases agent should use or avoid
+   
+   Each coaching item should:
+   - Have a clear 2-4 word title
+   - Provide specific, actionable guidance (10-15 words)
+   - Focus on immediate next steps, not generic advice
+   - Reference specific aspects of the conversation when relevant
 
 Respond ONLY with valid JSON:
 {
@@ -765,8 +776,8 @@ Respond ONLY with valid JSON:
   "responseQuality": 1-10,
   "experienceScore": 1-10,
   "customerName": "Name or null",
-  "issue": "Issue type",
-  "coaching": [{"type": "empathy|knowledge|action", "title": "2-4 words", "message": "3-5 words"}]
+  "issue": "2 words max",
+  "coaching": [{"type": "empathy|knowledge|action|critical", "title": "2-4 words", "message": "10-15 words with specific guidance"}]
 }`;
         
         const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -778,7 +789,7 @@ Respond ONLY with valid JSON:
                 stream: false,
                 options: {
                     temperature: 0.3,
-                    num_predict: 600
+                    num_predict: 800
                 }
             })
         });
@@ -1015,7 +1026,40 @@ function updateCustomerInfo(analysis) {
 
 function updateCustomerIssue(issue) {
     const elem = document.getElementById('customer-issue');
-    if (elem) elem.textContent = issue;
+    if (elem) {
+        // Limit to 2 words max
+        const words = issue.split(' ');
+        const truncated = words.slice(0, 2).join(' ');
+        elem.textContent = truncated;
+    }
+}
+
+function updateSentiment(emotionScore) {
+    const elem = document.getElementById('sentiment-label');
+    if (!elem) return;
+    
+    let sentiment = 'N/A';
+    let colorClass = 'text-gray-500';
+    
+    if (emotionScore <= 2) {
+        sentiment = 'Heated';
+        colorClass = 'text-red-400 font-semibold';
+    } else if (emotionScore <= 4) {
+        sentiment = 'Tense';
+        colorClass = 'text-orange-400 font-semibold';
+    } else if (emotionScore <= 6) {
+        sentiment = 'Neutral';
+        colorClass = 'text-yellow-400 font-semibold';
+    } else if (emotionScore <= 8) {
+        sentiment = 'Calm';
+        colorClass = 'text-green-400 font-semibold';
+    } else {
+        sentiment = 'Positive';
+        colorClass = 'text-blue-400 font-semibold';
+    }
+    
+    elem.textContent = sentiment;
+    elem.className = colorClass;
 }
 
 function updateCoaching(coachingItems) {
