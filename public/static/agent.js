@@ -14,6 +14,8 @@ let customerIssueFixed = false;
 let customerNameFixed = false;
 let statusUpdateCount = 0;
 let customerHasSpoken = false;
+let previousCoachingTopics = [];  // Track coaching history to avoid repetition
+let conversationTurnCount = 0;  // Track conversation progression
 
 // Agent speech recognition
 let agentRecognition = null;
@@ -48,6 +50,8 @@ function startNewSession() {
     conversationHistory = [];
     customerNameFixed = false;
     customerIssueFixed = false;
+    previousCoachingTopics = [];  // Clear coaching history
+    conversationTurnCount = 0;  // Reset turn counter
     
     currentSessionId = generateSessionId();
     const baseUrl = window.location.origin;
@@ -322,7 +326,8 @@ async function handleCustomerMessage(text, voiceMetrics = null) {
         timestamp: Date.now(),
         voiceMetrics: voiceMetrics
     });
-    console.log('[AGENT] Conversation history updated, total messages:', conversationHistory.length);
+    conversationTurnCount++;  // Increment turn counter for customer messages
+    console.log('[AGENT] Conversation history updated, total messages:', conversationHistory.length, 'turns:', conversationTurnCount);
     
     // Get AI analysis for the ENTIRE conversation (customer + agent)
     // This analyzes: Emotion (customer state), Response Quality (agent performance), Experience (trajectory)
